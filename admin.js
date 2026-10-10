@@ -29,7 +29,8 @@
     facilities: null,
     auditLogs: [],
     systemStatus: null,
-    kThreshold: 5
+    kThreshold: 5,
+    selectedDistrict: ''
   };
 
   function showToast(message, type) {
@@ -408,83 +409,282 @@
     `;
   }
 
-  // 3. GEOGRAPHIC VIEW WITH K-ANONYMITY SLIDER
-  async function renderGeographicView() {
-    viewTitle.textContent = 'Geographic Trends & Privacy Preservation';
-    viewSub.textContent = 'District-level prevalence with dynamic k-anonymity suppression slider';
+  var PUNE_GEOJSON_URL = 'data/pune-talukas.json';
+  var puneGeometryPromise = null;
 
-    viewRoot.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-2);">Loading district surveillance data...</div>';
+  function loadPuneGeometry() {
+    if (!puneGeometryPromise) {
+      puneGeometryPromise = fetch(PUNE_GEOJSON_URL)
+        .then(function (response) {
+          if (!response.ok) throw new Error('Pune taluka boundaries could not be loaded');
+          return response.json();
+        });
+    }
+    return puneGeometryPromise;
+  }
+
+  function normaliseDistrictName(name) {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/\bdistrict\b/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  function districtMetricsByName(data) {
+    var source = (data && (data.districts || data.regions)) || [];
+    return source.reduce(function (lookup, district) {
+      var name = district.name || district.district || district.districtName;
+      if (name) lookup[normaliseDistrictName(name)] = district;
+      return lookup;
+    }, {});
+  }
+
+  function metricValue(district, keys, fallback) {
+    for (var i = 0; i < keys.length; i += 1) {
+      if (district && district[keys[i]] != null) return district[keys[i]];
+    }
+    return fallback;
+  }
+
+  function projectDistrictGeometry(geometry, width, height) {
+    var points = [];
+    function collect(coords) {
+      if (typeof coords[0] === 'number') {
+        points.push(coords);
+      } else {
+        coords.forEach(collect);
+      }
+    }
+    collect(geometry.coordinates);
+
+    return points.map(function (point) { return [point[0], point[1]]; });
+  }
+
+  function createMaharashtraMap(features, metrics, selectedName) {
+    var width = 720;
+    var height = 640;
+    var allPoints = [];
+    features.forEach(function (feature) {
+      allPoints = allPoints.concat(projectDistrictGeometry(feature.geometry, width, height));
+    });
+    var bounds = allPoints.reduce(function (result, point) {
+      result.minX = Math.min(result.minX, point[0]);
+      result.maxX = Math.max(result.maxX, point[0]);
+      result.minY = Math.min(result.minY, point[1]);
+      result.maxY = Math.max(result.maxY, point[1]);
+      return result;
+    }, { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+    var scale = Math.min((width - 48) / (bounds.maxX - bounds.minX), (height - 48) / (bounds.maxY - bounds.minY));
+
+    function project(point) {
+      return [
+        24 + (point[0] - bounds.minX) * scale,
+        24 + (bounds.maxY - point[1]) * scale
+      ];
+    }
+
+    function pathForGeometry(geometry) {
+      function pathForRing(ring) {
+        return ring.map(function (point, index) {
+          var projected = project(point);
+          return (index ? 'L' : 'M') + projected[0].toFixed(2) + ' ' + projected[1].toFixed(2);
+        }).join(' ') + ' Z';
+      }
+      if (geometry.type === 'Polygon') return geometry.coordinates.map(pathForRing).join(' ');
+      return geometry.coordinates.map(function (polygon) {
+        return polygon.map(pathForRing).join(' ');
+      }).join(' ');
+    }
+
+    function riskClass(district) {
+      var risk = String(metricValue(district, ['risk', 'riskStatus', 'status'], '')).toLowerCase();
+      if (risk.indexOf('high') >= 0 || risk.indexOf('critical') >= 0) return 'high';
+      if (risk.indexOf('medium') >= 0 || risk.indexOf('moderate') >= 0) return 'medium';
+      if (risk.indexOf('low') >= 0) return 'low';
+      return 'unknown';
+    }
+
+    return '<svg class="maha-map__svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Interactive Maharashtra district map">' +
+      features.map(function (feature) {
+        var name = feature.properties && (feature.properties.name || feature.properties.taluka || feature.properties.district || feature.properties.DISTRICT);
+        var district = metrics[normaliseDistrictName(name)] || {};
+        var selected = normaliseDistrictName(name) === normaliseDistrictName(selectedName);
+        return '<path class="maha-map__district maha-map__district--' + riskClass(district) + (selected ? ' is-selected' : '') +
+          '" data-district="' + esc(name) + '" data-district-key="' + esc(normaliseDistrictName(name)) + '" d="' + pathForGeometry(feature.geometry) +
+          '" tabindex="0" role="button" aria-label="' + esc(name) + ' district"><title>' + esc(name) + '</title></path>';
+      }).join('') + '</svg>';
+  }
+
+  function renderDistrictDetails(name, district) {
+    if (!name) {
+      return '<div class="maha-map__empty"><strong>Select a taluka</strong><span>Click any Pune taluka on the map to inspect its latest public-health metrics.</span></div>';
+    }
+    var patients = metricValue(district, ['patients', 'patientCount', 'patientsCount', 'registeredPatients'], 'Pending');
+    var cases = metricValue(district, ['cases', 'caseCount', 'reportedCases'], 'Pending');
+    var trend = metricValue(district, ['diseaseTrend', 'trend', 'trendSummary'], 'Pending');
+    var facilities = metricValue(district, ['facilities', 'facilityCount', 'reportingFacilities'], 'Pending');
+    var risk = metricValue(district, ['risk', 'riskStatus', 'status'], 'Awaiting feed');
+    return '<div class="maha-map__details-head"><div><span class="maha-map__eyebrow">Selected taluka</span><h3>' + esc(name) +
+      '</h3></div><span class="maha-map__risk maha-map__risk--' + String(risk).toLowerCase() + '">' + esc(risk) + '</span></div>' +
+      '<div class="maha-map__metric-grid">' +
+      '<div><span>Patients</span><strong>' + esc(patients) + '</strong></div>' +
+      '<div><span>Reported cases</span><strong>' + esc(cases) + '</strong></div>' +
+      '<div><span>Disease trend</span><strong>' + esc(trend) + '</strong></div>' +
+      '<div><span>Reporting facilities</span><strong>' + esc(facilities) + '</strong></div></div>' +
+      '<p class="maha-map__privacy">District values follow the active k=' + esc(state.kThreshold) + ' privacy threshold. Suppressed values are never exposed.</p>';
+  }
+
+  function createLeafletMap(features, metrics, detailsRoot) {
+    if (!window.L) throw new Error('Interactive map library could not be loaded');
+
+    var map = window.L.map('maha-map', {
+      zoomControl: true,
+      scrollWheelZoom: true,
+      attributionControl: false,
+      minZoom: 6,
+      maxZoom: 11
+    });
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    var districtLayers = [];
+    var selectedLayer = null;
+    var talukaColors = ['#f97316', '#8b5cf6', '#22c55e', '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#f43f5e', '#84cc16', '#a855f7', '#0ea5e9', '#f59e0b'];
+
+    function riskClass(district) {
+      var risk = String(metricValue(district, ['risk', 'riskStatus', 'status'], '')).toLowerCase();
+      if (risk.indexOf('high') >= 0 || risk.indexOf('critical') >= 0) return 'high';
+      if (risk.indexOf('medium') >= 0 || risk.indexOf('moderate') >= 0) return 'medium';
+      if (risk.indexOf('low') >= 0) return 'low';
+      return 'unknown';
+    }
+
+    function styleFor(feature) {
+      var name = feature.properties && (feature.properties.name || feature.properties.taluka || feature.properties.district || feature.properties.DISTRICT);
+      var district = metrics[normaliseDistrictName(name)] || {};
+      var colors = {
+        high: '#ef4444',
+        medium: '#f59e0b',
+        low: '#10b981',
+        unknown: '#94a3b8'
+      };
+      var hasRisk = metricValue(district, ['risk', 'riskStatus', 'status'], '');
+      var colorIndex = Math.abs(normaliseDistrictName(name).split('').reduce(function (sum, character) {
+        return sum + character.charCodeAt(0);
+      }, 0)) % talukaColors.length;
+      return {
+        color: '#24465b',
+        weight: 2,
+        opacity: 1,
+        fillColor: hasRisk ? colors[riskClass(district)] : talukaColors[colorIndex],
+        fillOpacity: hasRisk ? .34 : .48
+      };
+    }
+
+    function selectDistrict(layer, name) {
+      selectedLayer = layer;
+      state.selectedDistrict = name;
+      districtLayers.forEach(function (item) {
+        item.layer.setStyle(styleFor(item.feature));
+        if (item.layer._path) item.layer._path.classList.remove('is-selected');
+      });
+      layer.setStyle({ color: '#ffffff', weight: 3, fillColor: '#2dd4bf', fillOpacity: .62 });
+      if (layer._path) layer._path.classList.add('is-selected');
+      layer.bringToFront();
+      detailsRoot.classList.remove('is-updating');
+      detailsRoot.innerHTML = renderDistrictDetails(name, metrics[normaliseDistrictName(name)] || {});
+      detailsRoot.classList.add('is-updating');
+      detailsRoot.setAttribute('aria-label', name + ' taluka details');
+    }
+
+    var collection = window.L.geoJSON({ type: 'FeatureCollection', features: features }, {
+      style: styleFor,
+      onEachFeature: function (feature, layer) {
+        var name = feature.properties && (feature.properties.name || feature.properties.taluka || feature.properties.district || feature.properties.DISTRICT || 'Taluka');
+        districtLayers.push({ feature: feature, layer: layer });
+        if (layer._path) layer._path.classList.add('maha-map__district');
+        layer.bindTooltip(name, { sticky: true, direction: 'top', className: 'maha-map__tooltip' });
+        layer.on({
+          mouseover: function () {
+            if (layer === selectedLayer) return;
+            layer.setStyle({ color: '#ffffff', weight: 2.8, fillOpacity: .52 });
+            layer.bringToFront();
+          },
+          mouseout: function () {
+            if (layer === selectedLayer) return;
+            layer.setStyle(styleFor(feature));
+          },
+          click: function () {
+            selectDistrict(layer, name);
+            layer.bindPopup('<strong>' + esc(name) + '</strong><span class="maha-map__popup-label">Selected taluka</span>', {
+              className: 'maha-map__popup',
+              closeButton: true,
+              maxWidth: 180
+            }).openPopup();
+          }
+        });
+      }
+    }).addTo(map);
+
+    var districtBounds = collection.getBounds();
+    map.fitBounds(districtBounds, { padding: [8, 8], maxZoom: 9 });
+    map.setMaxBounds(districtBounds.pad(0.08));
+    map.options.maxBoundsViscosity = 1;
+    window.L.control.attribution({ prefix: false }).addAttribution('Pune taluka boundary data').addTo(map);
+    return map;
+  }
+
+  // 3. MAHARASHTRA MAP WITH K-ANONYMITY SLIDER
+  async function renderGeographicView() {
+    viewTitle.textContent = 'Pune Taluka Disease Intelligence';
+    viewSub.textContent = 'Interactive Pune taluka trends with privacy-preserving public-health metrics';
+
+    viewRoot.innerHTML = '<div class="maha-map__loading"><span class="maha-map__spinner"></span> Loading Pune taluka boundaries...</div>';
 
     try {
-      var res = await api.get('/admin/geographic');
-      state.geographic = res.data;
-
-      var districts = [
-        { name: 'Bangalore Urban', cases: 482, pop: '9.6M', risk: 'High' },
-        { name: 'Mysore', cases: 142, pop: '3.1M', risk: 'Medium' },
-        { name: 'Belagavi', cases: 88, pop: '4.8M', risk: 'Low' },
-        { name: 'Dakshina Kannada', cases: 64, pop: '2.1M', risk: 'Medium' },
-        { name: 'Kalaburagi', cases: 28, pop: '2.6M', risk: 'Low' },
-        { name: 'Kodagu', cases: 7, pop: '0.6M', risk: 'Low' },
-        { name: 'Chamarajanagar', cases: 4, pop: '1.0M', risk: 'Low' }
-      ];
+      var geographicResponse = await api.get('/admin/geographic').catch(function (error) {
+        console.warn('District metrics are unavailable; rendering the boundary map without metrics.', error);
+        return { data: { districts: [] } };
+      });
+      var results = await Promise.all([geographicResponse, loadPuneGeometry()]);
+      state.geographic = results[0].data;
+      var features = results[1].features || [];
+      if (!features.length) throw new Error('Pune district boundary is unavailable');
+      var metrics = districtMetricsByName(state.geographic);
 
       var html = `
         <div class="od-stack" style="--od-gap: 20px;">
-
-          <!-- Interactive Privacy Controls Card -->
-          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px;">
-            <div class="od-row" style="justify-content: space-between; margin-bottom: 12px;">
-              <div>
-                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text);">Dynamic k-Anonymity Suppression Threshold</h3>
-                <div style="font-size: 13px; color: var(--text-2); margin-top: 2px;">
-                  Values below threshold <strong>k</strong> are mathematically suppressed (&lt;k) to prevent patient re-identification.
-                </div>
-              </div>
-              <div style="font-size: 20px; font-weight: 800; color: #0F766E;">
-                k = <span id="k-val-display">${state.kThreshold}</span>
-              </div>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 16px; margin: 16px 0;">
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-2);">Strict Privacy (k=20)</span>
-              <input type="range" id="k-slider" min="3" max="20" value="${state.kThreshold}" style="flex: 1; accent-color: #0F766E; cursor: pointer;" />
-              <span style="font-size: 12px; font-weight: 700; color: var(--text-2);">Granular (k=3)</span>
-            </div>
+          <div class="maha-map__toolbar">
+            <div><span class="maha-map__eyebrow">Privacy control</span><h3>District-level k-anonymity</h3><p>Values below k are suppressed to prevent patient re-identification.</p></div>
+            <label class="maha-map__slider">k = <output id="k-val-display">${state.kThreshold}</output><input type="range" id="k-slider" min="3" max="20" value="${state.kThreshold}" /></label>
           </div>
-
-          <!-- District Table -->
-          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--text-2); font-size: 12px; text-transform: uppercase;">
-                  <th style="padding: 10px 14px;">District</th>
-                  <th style="padding: 10px 14px;">Population</th>
-                  <th style="padding: 10px 14px;">Reported Cases</th>
-                  <th style="padding: 10px 14px;">Risk Status</th>
-                  <th style="padding: 10px 14px;">Privacy Status</th>
-                </tr>
-              </thead>
-              <tbody id="district-tbody">
-                ${renderDistrictRows(districts, state.kThreshold)}
-              </tbody>
-            </table>
+          <div class="maha-map__layout">
+            <section class="maha-map__card maha-map__canvas">
+              <div class="maha-map__legend"><span><i class="is-high"></i>High risk</span><span><i class="is-medium"></i>Moderate</span><span><i class="is-low"></i>Low</span><span><i class="is-unknown"></i>Taluka overlay</span></div>
+              <div id="maha-map" role="application" aria-label="Interactive Pune taluka map"></div>
+              <p class="maha-map__source">Boundary source: GADM 4.1 Pune taluka GeoJSON · Scroll to zoom · Hover for taluka name · Click to inspect metrics</p>
+            </section>
+            <aside class="maha-map__card maha-map__details" id="maha-map-details" aria-live="polite">${renderDistrictDetails('', {})}</aside>
           </div>
-
         </div>
       `;
 
       viewRoot.innerHTML = html;
 
+      var detailsRoot = byId('maha-map-details');
+      createLeafletMap(features, metrics, detailsRoot);
       var slider = byId('k-slider');
       slider.addEventListener('input', function () {
         state.kThreshold = parseInt(this.value, 10);
         byId('k-val-display').textContent = state.kThreshold;
-        byId('district-tbody').innerHTML = renderDistrictRows(districts, state.kThreshold);
+        detailsRoot.classList.remove('is-updating');
+        detailsRoot.innerHTML = renderDistrictDetails(state.selectedDistrict, metrics[normaliseDistrictName(state.selectedDistrict)] || {});
+        detailsRoot.classList.add('is-updating');
       });
 
     } catch (err) {
-      viewRoot.innerHTML = '<div style="color: #DC2626; padding: 30px;">Error loading geographic data: ' + esc(err.message) + '</div>';
+      viewRoot.innerHTML = '<div class="maha-map__error">Unable to load the Pune taluka map. ' + esc(err.message) + '</div>';
     }
   }
 

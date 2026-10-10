@@ -189,7 +189,8 @@
     }
   </style>
 
-  <link rel="stylesheet" href="app.css" />
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <link rel="stylesheet" href="app.css?v=pune-taluka-popup" />
 </head>
 <body>
 
@@ -372,8 +373,9 @@
   <div id="overlay"></div>
 
   <!-- Shared REST API Client & Admin Console Logic -->
+  <script src="vendor/leaflet.js"></script>
   <script src="api.js"></script>
-  <script src="admin.js"></script>
+  <script src="admin.js?v=pune-taluka-popup"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
