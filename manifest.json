@@ -1,0 +1,61 @@
+{
+  "id": "/?hmx_source=pwa",
+  "name": "HackMatrix Healthcare Platform",
+  "short_name": "HackMatrix",
+  "description": "Patient, Clinician, and Public Health Consent-Centric Healthcare Platform",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B1220",
+  "theme_color": "#0F766E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Patient Portal",
+      "short_name": "Patient",
+      "description": "Access patient health records, consent grants, and QR pass",
+      "url": "/patient.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Clinician Portal",
+      "short_name": "Clinician",
+      "description": "Doctor workstation with QR scanner and clinical charts",
+      "url": "/clinician.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Console",
+      "short_name": "Admin",
+      "description": "Public health epidemiology and disease surveillance",
+      "url": "/admin.html",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
