@@ -941,6 +941,289 @@ a { color: var(--blue); }
   .hm-scanner__laser { display: none; }
 }
 
+/* ---------------- Maharashtra district intelligence map ---------------- */
+
+  .maha-map__loading,
+  .maha-map__error {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--text-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+  }
+  .maha-map__error { color: var(--error); }
+  .maha-map__spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    vertical-align: -4px;
+    border: 2px solid var(--brand-soft-border);
+    border-top-color: var(--brand);
+    border-radius: 50%;
+    animation: maha-spin .8s linear infinite;
+  }
+  @keyframes maha-spin { to { transform: rotate(360deg); } }
+  .maha-map__toolbar,
+  .maha-map__card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-card);
+  }
+  .maha-map__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 20px 22px;
+  }
+  .maha-map__toolbar h3,
+  .maha-map__details h3 {
+    margin: 2px 0 0;
+    font-size: 18px;
+    color: var(--text);
+  }
+  .maha-map__toolbar p {
+    margin: 4px 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-meta);
+  }
+  .maha-map__eyebrow {
+    color: var(--brand);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .maha-map__slider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--brand);
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .maha-map__slider output {
+    min-width: 26px;
+    padding: 4px 8px;
+    text-align: center;
+    color: #fff;
+    background: var(--brand);
+    border-radius: var(--r-pill);
+  }
+  .maha-map__slider input { width: 150px; accent-color: var(--brand); }
+  .maha-map__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+    gap: 20px;
+  }
+  .maha-map__canvas { min-width: 0; padding: 14px; overflow: hidden; }
+  .maha-map__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 420px;
+    padding: 16px;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(45, 212, 191, .12), transparent 48%),
+      linear-gradient(145deg, #0f2433, #0b1220 72%);
+    border-radius: var(--r-md);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .18), inset 0 18px 36px rgba(0, 0, 0, .14);
+  }
+  .maha-map__canvas #maha-map {
+    height: clamp(360px, 42vw, 500px);
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, .26);
+    border-radius: var(--r-md);
+    background: #102837;
+  }
+  .maha-map__canvas .leaflet-container {
+    height: 100%;
+    font: inherit;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(45, 212, 191, .12), transparent 48%),
+      #0b1220;
+  }
+  .maha-map__canvas .leaflet-control-zoom a,
+  .maha-map__canvas .leaflet-control-attribution {
+    color: #dbeafe;
+    background: rgba(11, 18, 32, .86);
+    border-color: rgba(148, 163, 184, .26);
+  }
+  .maha-map__canvas .leaflet-control-zoom a:hover {
+    color: #fff;
+    background: var(--brand);
+  }
+  .maha-map__canvas .leaflet-control-attribution a { color: var(--accent-2); }
+  .maha-map__canvas .leaflet-overlay-pane path.leaflet-interactive {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: fill 220ms var(--ease-out), fill-opacity 220ms var(--ease-out),
+      stroke 220ms var(--ease-out), stroke-width 220ms var(--ease-out),
+      transform 220ms var(--ease-out), filter 220ms var(--ease-out);
+  }
+  .maha-map__canvas .leaflet-overlay-pane path.leaflet-interactive:hover {
+    transform: scale(1.018);
+    filter: drop-shadow(0 4px 5px rgba(15, 23, 42, .34));
+  }
+  .maha-map__canvas .leaflet-overlay-pane path.leaflet-interactive.is-selected {
+    transform: scale(1.045);
+    filter: drop-shadow(0 8px 8px rgba(15, 23, 42, .48));
+    animation: maha-leaflet-pop 320ms var(--ease-out);
+  }
+  @keyframes maha-leaflet-pop {
+    0% { transform: scale(.985); }
+    68% { transform: scale(1.06); }
+    100% { transform: scale(1.045); }
+  }
+  .maha-map__tooltip {
+    padding: 6px 9px;
+    color: #f8fafc;
+    background: #0b1220;
+    border: 1px solid rgba(45, 212, 191, .5);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+    font-weight: 700;
+  }
+  .maha-map__tooltip:before { border-top-color: #0b1220; }
+  .maha-map__popup .leaflet-popup-content-wrapper,
+  .maha-map__popup .leaflet-popup-tip {
+    background: var(--surface);
+  }
+  .maha-map__popup .leaflet-popup-content {
+    width: min(300px, calc(100vw - 64px)) !important;
+    margin: 14px;
+  }
+  .maha-map__popup .leaflet-popup-content {
+    display: grid;
+    gap: 4px;
+    width: auto !important;
+    min-width: 110px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .maha-map__popup-label {
+    color: var(--text-2);
+    font-size: 11px;
+  }
+  .maha-map__popup .maha-map__details-head { gap: 8px; }
+  .maha-map__popup .maha-map__metric-grid { margin-top: 14px; }
+  .maha-map__popup .maha-map__privacy { margin-top: 12px; }
+  .maha-map__district {
+    fill: #9fb2c4;
+    stroke: #253b4d;
+    stroke-width: 1.35;
+    paint-order: stroke fill;
+    cursor: pointer;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition: fill var(--dur) var(--ease-out), stroke var(--dur) var(--ease-out), transform var(--dur) var(--ease-out), filter var(--dur) var(--ease-out);
+  }
+  .maha-map__district--high { fill: #f87171; }
+  .maha-map__district--medium { fill: #fbbf24; }
+  .maha-map__district--low { fill: #34d399; }
+  .maha-map__district:hover,
+  .maha-map__district.is-hovered {
+    stroke: #f8fafc;
+    stroke-width: 2.5;
+    filter: drop-shadow(0 5px 6px rgba(0, 0, 0, .5));
+    transform: scale(1.025);
+  }
+  .maha-map__district.is-selected {
+    fill: #2dd4bf;
+    stroke: #ffffff;
+    stroke-width: 3.2;
+    filter: drop-shadow(0 8px 8px rgba(0, 0, 0, .58));
+    animation: maha-pop .35s var(--ease-out);
+  }
+  @keyframes maha-pop {
+    0% { transform: scale(.96); opacity: .65; }
+    70% { transform: scale(1.045); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .maha-map__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    padding: 4px 4px 14px;
+    color: var(--text);
+    font-size: var(--fs-caption);
+  }
+  .maha-map__legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .maha-map__legend i {
+    width: 11px;
+    height: 11px;
+    display: inline-block;
+    border-radius: 3px;
+  }
+  .maha-map__legend .is-high { background: #f87171; }
+  .maha-map__legend .is-medium { background: #fbbf24; }
+  .maha-map__legend .is-low { background: #34d399; }
+  .maha-map__legend .is-unknown { background: #9fb2c4; }
+  .maha-map__source {
+    margin: 10px 4px 0;
+    color: var(--text-3);
+    font-size: 11px;
+  }
+  .maha-map__details {
+    min-height: 280px;
+    padding: 22px;
+    align-self: start;
+    overflow: hidden;
+    transition: box-shadow 260ms var(--ease-out), border-color 260ms var(--ease-out),
+      transform 260ms var(--ease-out);
+  }
+  .maha-map__details.is-updating {
+    border-color: rgba(45, 212, 191, .55);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+    transform: translateY(-3px);
+  }
+  .maha-map__details-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .maha-map__risk {
+    padding: 4px 8px;
+    border-radius: var(--r-pill);
+    color: var(--text-2);
+    background: var(--surface-3);
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .maha-map__risk--high, .maha-map__risk--critical { color: #991B1B; background: #FEE2E2; }
+  .maha-map__risk--medium, .maha-map__risk--moderate { color: #92400E; background: #FEF3C7; }
+  .maha-map__risk--low { color: #166534; background: #DCFCE7; }
+  .maha-map__metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 24px; }
+  .maha-map__metric-grid div { padding: 12px; background: var(--surface-2); border-radius: var(--r-md); }
+  .maha-map__metric-grid span { display: block; color: var(--text-2); font-size: 11px; }
+  .maha-map__metric-grid strong { display: block; margin-top: 4px; color: var(--text); font-size: 17px; overflow-wrap: anywhere; }
+  .maha-map__details.is-updating .maha-map__details-head,
+  .maha-map__details.is-updating .maha-map__metric-grid div,
+  .maha-map__details.is-updating .maha-map__privacy {
+    animation: maha-details-in 260ms var(--ease-out) both;
+  }
+  .maha-map__details.is-updating .maha-map__metric-grid div:nth-child(2) { animation-delay: 35ms; }
+  .maha-map__details.is-updating .maha-map__metric-grid div:nth-child(3) { animation-delay: 70ms; }
+  .maha-map__details.is-updating .maha-map__metric-grid div:nth-child(4) { animation-delay: 105ms; }
+  @keyframes maha-details-in {
+    from { opacity: 0; transform: translateY(7px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .maha-map__privacy { margin: 20px 0 0; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+  .maha-map__empty { display: grid; gap: 8px; min-height: 220px; align-content: center; text-align: center; color: var(--text-2); }
+  .maha-map__empty strong { color: var(--text); font-size: 17px; }
+  .maha-map__empty span { font-size: 13px; }
+
+  @media (max-width: 760px) {
+    .maha-map__toolbar { align-items: flex-start; flex-direction: column; }
+    .maha-map__slider { width: 100%; }
+    .maha-map__slider input { flex: 1; }
+    .maha-map__layout { grid-template-columns: 1fr; }
+    .maha-map__svg { min-height: 300px; }
+    .maha-map__canvas #maha-map { height: min(64vh, 460px); min-height: 340px; }
+    .maha-map__details.is-updating { transform: translateY(-2px); }
+  }
 /* ---------------- modal dialog primitives ---------------- */
 
 #overlay {
