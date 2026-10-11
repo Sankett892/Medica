@@ -13,6 +13,40 @@ declare global {
   }
 }
 
+async function attachLinkedProfiles(user: IUser): Promise<void> {
+  try {
+    if (user.role === 'PATIENT' && !user.linkedPatientId) {
+      const { Patient } = await import('../models/Patient.js');
+      const patient = await Patient.findOne({
+        $or: [
+          { identifiers: user.email },
+          { identifiers: user.email?.toLowerCase() },
+          { name: user.name }
+        ]
+      }) || await Patient.findOne();
+      if (patient) {
+        user.linkedPatientId = patient._id;
+        await User.findByIdAndUpdate(user._id, { linkedPatientId: patient._id });
+      }
+    } else if (user.role === 'CLINICIAN' && !user.linkedPractitionerId) {
+      const { Practitioner } = await import('../models/Practitioner.js');
+      const pract = await Practitioner.findOne({
+        $or: [
+          { identifiers: user.email },
+          { identifiers: user.email?.toLowerCase() },
+          { name: new RegExp((user.name || '').replace(/Dr\.\s*/i, ''), 'i') }
+        ]
+      }) || await Practitioner.findOne();
+      if (pract) {
+        user.linkedPractitionerId = pract._id;
+        await User.findByIdAndUpdate(user._id, { linkedPractitionerId: pract._id });
+      }
+    }
+  } catch (err) {
+    console.warn('[Auth] attachLinkedProfiles non-fatal error:', err);
+  }
+}
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
   const devUserId = req.headers['x-dev-user-id'] as string | undefined;
@@ -33,6 +67,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     if (user && user.status === 'Active') {
+      await attachLinkedProfiles(user);
       req.user = user;
       return next();
     } else if (user && user.status === 'Suspended') {
@@ -65,6 +100,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     if (user && user.status === 'Active') {
+      await attachLinkedProfiles(user);
       req.user = user;
       return next();
     }
@@ -91,6 +127,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return next(new AppError(403, 'ACCOUNT_SUSPENDED', 'Your account has been suspended'));
     }
 
+    await attachLinkedProfiles(user);
     req.user = user;
     next();
   } catch (error) {

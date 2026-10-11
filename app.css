@@ -994,3 +994,94 @@ html.is-embedded body {
   from { opacity: 0; transform: scale(0.95) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* ==========================================================================
+   Mobile-First Handheld App Shell & Bottom Navigation (Clinician Mobile)
+   ========================================================================== */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .clinician-nav {
+    display: none !important;
+  }
+
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: #0B1220;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+    z-index: 999;
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  .mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 4px;
+    gap: 4px;
+    transition: color 0.15s, transform 0.1s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-nav-btn svg {
+    transition: transform 0.15s;
+  }
+
+  .mobile-nav-btn.active {
+    color: #38BDF8;
+  }
+
+  .mobile-nav-btn.active svg {
+    transform: translateY(-2px);
+    color: #38BDF8;
+  }
+
+  .mobile-nav-btn--primary {
+    position: relative;
+    top: -12px;
+  }
+
+  .mobile-fab-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5), 0 0 0 4px #0B1220;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s;
+  }
+
+  .mobile-nav-btn--primary:active .mobile-fab-circle {
+    transform: scale(0.92);
+  }
+
+  .mobile-install-banner {
+    display: block !important;
+  }
+}
+

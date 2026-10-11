@@ -1,0 +1,62 @@
+{
+  "id": "io.hackmatrix.clinician",
+  "name": "HackMatrix Clinician — Doctor Portal",
+  "short_name": "HM Clinician",
+  "description": "Hospital bedside workstation with optical patient QR pass scanner, scoped electronic health records, clinical encounter intake, and emergency break-glass override.",
+  "start_url": "/clinician.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#2563EB",
+  "orientation": "any",
+  "categories": ["medical", "health", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Scan Patient QR",
+      "short_name": "Scan QR",
+      "description": "Open optical camera scanner to verify patient consent pass",
+      "url": "/clinician.html?action=scan_qr",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Clinical Encounter Intake",
+      "short_name": "Intake",
+      "description": "Record clinical encounter and syndromic surveillance",
+      "url": "/clinician.html?action=intake",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Emergency Break-Glass",
+      "short_name": "Break-Glass",
+      "description": "Emergency clinical override with HMAC audit logging",
+      "url": "/clinician.html?action=break_glass",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

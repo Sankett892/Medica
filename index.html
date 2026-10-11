@@ -416,22 +416,39 @@
                   </div>
 
                   <div style="margin-bottom: 12px;">
-                    <label for="reg-locality" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Pune Locality (Primary Region) *</label>
-                    <select id="reg-locality" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
-                      <option value="Kothrud">Kothrud</option>
-                      <option value="Baner">Baner</option>
-                      <option value="Aundh">Aundh</option>
-                      <option value="Hinjawadi">Hinjawadi</option>
-                      <option value="Wakad">Wakad</option>
-                      <option value="Hadapsar">Hadapsar</option>
-                      <option value="Kharadi">Kharadi</option>
-                      <option value="Bibwewadi">Bibwewadi</option>
-                      <option value="Kondhwa">Kondhwa</option>
-                      <option value="Viman Nagar">Viman Nagar</option>
-                      <option value="Shivajinagar">Shivajinagar</option>
-                      <option value="Yerawada">Yerawada</option>
-                      <option value="Pimpri">Pimpri</option>
-                      <option value="Chinchwad">Chinchwad</option>
+                    <label for="reg-taluka" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Pune District Taluka (Surveillance Region) *</label>
+                    <select id="reg-taluka" style="width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px; font-weight: 600;">
+                      <option value="Junnar">Junnar Taluka</option>
+                      <option value="Ambegaon">Ambegaon Taluka</option>
+                      <option value="Khed">Khed Taluka</option>
+                      <option value="Maval">Maval Taluka</option>
+                      <option value="Mulshi">Mulshi Taluka</option>
+                      <option value="Pune" selected>Pune Taluka</option>
+                      <option value="Haveli">Haveli Taluka</option>
+                      <option value="Shirur">Shirur Taluka</option>
+                      <option value="Velhe">Velhe Taluka</option>
+                      <option value="Bhor">Bhor Taluka</option>
+                      <option value="Purandar">Purandar Taluka</option>
+                      <option value="Daund">Daund Taluka</option>
+                      <option value="Baramati">Baramati Taluka</option>
+                      <option value="Indapur">Indapur Taluka</option>
+                    </select>
+                    <div style="margin-top: 6px; padding: 7px 10px; background: rgba(15, 118, 110, 0.25); border: 1px solid rgba(45, 212, 191, 0.35); border-radius: 8px; font-size: 11.5px; color: #2DD4BF; font-weight: 600; line-height: 1.4;">
+                      📊 <strong>Admin Surveillance Notice:</strong> Registering this patient will immediately reflect as an increased (+1) active affected case count on the Admin Pune Disease Map for the selected Taluka.
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <label for="reg-condition" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Presenting Clinical Condition / Disease *</label>
+                    <select id="reg-condition" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                      <option value="Vector-Borne (Dengue & Chikungunya)">Vector-Borne (Dengue &amp; Chikungunya)</option>
+                      <option value="Viral Fever & Infection Surveillance" selected>Viral Fever &amp; Infection Surveillance (ARI / Flu)</option>
+                      <option value="Bronchial Asthma & Respiratory">Bronchial Asthma &amp; Respiratory</option>
+                      <option value="Acute Diarrheal Disease (ADD / Gastroenteritis)">Acute Diarrheal Disease (ADD / Gastroenteritis)</option>
+                      <option value="Hypertension & Cardiovascular">Hypertension &amp; Cardiovascular</option>
+                      <option value="Diabetes Mellitus Monitoring">Diabetes Mellitus Monitoring</option>
+                      <option value="Dermatological conditions">Dermatological &amp; Skin Conditions</option>
+                      <option value="General Health / Routine Checkup">General Health &amp; Primary Care</option>
                     </select>
                   </div>
 

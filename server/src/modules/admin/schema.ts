@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const surveillanceQuerySchema = z.object({
-  disease: z.enum(['ili', 'dengue', 'add']).optional().default('ili'),
+  disease: z.string().optional().default('all'),
   region: z.string().optional().default('all'),
   period: z.coerce.number().optional().default(30)
 });

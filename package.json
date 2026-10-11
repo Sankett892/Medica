@@ -1,0 +1,32 @@
+{
+  "name": "hackmatrix-healthcare-platform-ui",
+  "version": "1.0.0",
+  "description": "HackMatrix Unified Healthcare Platform - Clinician & Doctor Mobile App",
+  "main": "server/dist/server.js",
+  "scripts": {
+    "start": "cd server && npm start",
+    "build": "cd server && npm run build",
+    "cap:init": "cap init \"HackMatrix Clinician\" io.hackmatrix.clinician --web-dir .",
+    "cap:add": "cap add android",
+    "cap:sync": "cap sync",
+    "cap:open": "cap open android",
+    "mobile:android": "cap run android",
+    "mobile:build": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "keywords": [
+    "hackmatrix",
+    "healthcare",
+    "doctor",
+    "clinician",
+    "mobile-app",
+    "pwa",
+    "capacitor"
+  ],
+  "author": "HackMatrix Team",
+  "license": "ISC"
+}

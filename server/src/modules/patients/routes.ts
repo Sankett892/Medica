@@ -18,8 +18,30 @@ import { qrService } from '../qr/service.js';
 import { recordsService } from '../records/service.js';
 import { createGrantSchema } from '../consent/schema.js';
 import { AppError } from '../../middleware/errorHandler.js';
+import { Types } from 'mongoose';
+import { Patient } from '../../models/Patient.js';
+import { User } from '../../models/User.js';
 
 const router = Router();
+
+async function getLinkedPatientId(req: Request): Promise<Types.ObjectId> {
+  if (req.user?.linkedPatientId) {
+    return req.user.linkedPatientId;
+  }
+  const patient = await Patient.findOne({
+    $or: [
+      { identifiers: req.user?.email },
+      { identifiers: req.user?.email?.toLowerCase() },
+      { name: req.user?.name }
+    ]
+  }) || await Patient.findOne();
+  if (patient) {
+    req.user!.linkedPatientId = patient._id;
+    await User.findByIdAndUpdate(req.user!._id, { linkedPatientId: patient._id });
+    return patient._id as Types.ObjectId;
+  }
+  throw new AppError(404, 'PATIENT_NOT_FOUND', 'No patient profile linked to this account');
+}
 
 // All patient endpoints require PATIENT role
 router.use(requireAuth, allow('PATIENT'));
@@ -33,7 +55,7 @@ router.get('/me/summary', auditLog({ action: 'Viewed health summary', resource: 
 router.get('/me/records', auditLog({ action: 'Viewed records list', resource: 'Clinical records' }), getPatientRecords);
 router.post('/me/records', auditLog({ action: 'Created health record', resource: 'Clinical record' }), async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const { cat, type, summary, fields } = req.body;
     if (!cat || !type || !summary) {
       throw new AppError(400, 'INVALID_INPUT', 'Fields cat, type, and summary are required');
@@ -58,7 +80,7 @@ router.get('/me/audit', getPatientAudit);
 // Consent Grants
 router.get('/me/grants', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const tab = (req.query.tab as string) || 'all';
     const data = await consentService.getGrantsForPatient(patientId, tab);
     res.json({ data });
@@ -69,7 +91,7 @@ router.get('/me/grants', async (req: Request, res: Response, next: NextFunction)
 
 router.post('/me/grants', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const parsed = createGrantSchema.parse(req.body);
     const data = await consentService.createGrant(patientId, req.user!._id, req.user!.name, parsed);
     res.status(201).json({ data });
@@ -80,7 +102,7 @@ router.post('/me/grants', async (req: Request, res: Response, next: NextFunction
 
 router.get('/me/grants/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await consentService.getGrantById(patientId, req.params.id as string);
     res.json({ data });
   } catch (err) {
@@ -90,7 +112,7 @@ router.get('/me/grants/:id', async (req: Request, res: Response, next: NextFunct
 
 router.post('/me/grants/:id/revoke', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await consentService.revokeGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
     res.json({ data });
   } catch (err) {
@@ -100,7 +122,7 @@ router.post('/me/grants/:id/revoke', async (req: Request, res: Response, next: N
 
 router.post('/me/grants/:id/approve', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await consentService.approveGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
     res.json({ data });
   } catch (err) {
@@ -110,7 +132,7 @@ router.post('/me/grants/:id/approve', async (req: Request, res: Response, next: 
 
 router.post('/me/grants/:id/reject', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await consentService.rejectGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
     res.json({ data });
   } catch (err) {
@@ -121,7 +143,7 @@ router.post('/me/grants/:id/reject', async (req: Request, res: Response, next: N
 // QR Authorization
 router.post('/me/qr', qrRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await qrService.generateToken(patientId, req.user!._id);
     res.json({ data });
   } catch (err) {
@@ -131,7 +153,7 @@ router.post('/me/qr', qrRateLimiter, async (req: Request, res: Response, next: N
 
 router.post('/me/qr/refresh', qrRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const patientId = req.user!.linkedPatientId!;
+    const patientId = await getLinkedPatientId(req);
     const data = await qrService.generateToken(patientId, req.user!._id);
     res.json({ data });
   } catch (err) {

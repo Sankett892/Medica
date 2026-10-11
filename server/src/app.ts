@@ -55,8 +55,11 @@ export function createApp(): express.Application {
   app.use('/api/v1', v1Router);
 
   // Serve Front-End Portal and PWA assets directly on Port 4000 (Same-Origin!)
-  const frontendDir = path.resolve(process.cwd(), '..');
+  const frontendDir = path.resolve(process.cwd(), 'patient.html')
+    ? (path.resolve(process.cwd(), 'server') ? process.cwd() : path.resolve(process.cwd(), '..'))
+    : path.resolve(process.cwd(), '..');
   app.use(express.static(frontendDir));
+  app.use(express.static(path.resolve(process.cwd(), '..')));
 
   // 404 handler
   app.use((req: Request, res: Response, next) => {

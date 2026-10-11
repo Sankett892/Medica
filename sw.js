@@ -1,5 +1,5 @@
 // HackMatrix Service Worker - Full Offline Support
-const CACHE_NAME = 'hackmatrix-v3';
+const CACHE_NAME = 'hackmatrix-v4';
 const ASSETS = [
   '/',
   '/index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   '/qrcode.min.js',
   '/jsqr.min.js',
   '/manifest.json',
+  '/manifest-clinician.json',
   '/icon-192.png',
   '/icon-512.png'
 ];

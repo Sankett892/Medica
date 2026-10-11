@@ -1,0 +1,33 @@
+{
+  "appId": "io.hackmatrix.clinician",
+  "appName": "HackMatrix Clinician",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "localhost",
+      "10.0.2.2",
+      "*.demo",
+      "*.hackmatrix.demo"
+    ]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0F172A",
+      "showSpinner": true,
+      "spinnerColor": "#2563EB"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0F172A"
+    }
+  }
+}

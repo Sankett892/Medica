@@ -210,6 +210,12 @@
     });
 
     tabRegister.addEventListener('click', function () {
+      switchToRegisterTab();
+    });
+  }
+
+  function switchToRegisterTab() {
+    if (tabRegister && tabSignIn && paneRegister && paneSignIn) {
       tabRegister.style.background = 'var(--surface, #fff)';
       tabRegister.style.color = 'var(--text, #172B3A)';
       tabRegister.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
@@ -219,6 +225,19 @@
       paneSignIn.style.display = 'none';
       paneRegister.style.display = 'block';
       errorBanner.style.display = 'none';
+    }
+  }
+
+  // Header "Create / Switch Patient" button handler
+  var btnSwitchAccount = document.getElementById('btn-patient-switch-account');
+  if (btnSwitchAccount) {
+    btnSwitchAccount.addEventListener('click', function () {
+      api.clearSession();
+      state.user = null;
+      showAuth();
+      switchToRegisterTab();
+      var nameInput = document.getElementById('reg-patient-name');
+      if (nameInput) nameInput.focus();
     });
   }
 
@@ -297,6 +316,10 @@
         var gender = document.getElementById('reg-patient-gender').value;
         var bloodGroup = document.getElementById('reg-patient-blood').value;
         var dob = document.getElementById('reg-patient-dob').value;
+        var talukaEl = document.getElementById('reg-patient-taluka');
+        var taluka = talukaEl ? talukaEl.value : 'Pune';
+        var conditionEl = document.getElementById('reg-patient-condition');
+        var condition = conditionEl ? conditionEl.value : 'Viral Fever & Infection Surveillance';
 
         var submitBtn = registerForm.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
@@ -309,7 +332,12 @@
           role: 'PATIENT',
           gender: gender,
           bloodGroup: bloodGroup,
-          dateOfBirth: dob
+          dateOfBirth: dob,
+          taluka: taluka,
+          region: taluka,
+          locality: taluka,
+          diseaseCategory: condition,
+          primaryCondition: condition
         });
 
         state.user = res.user;
@@ -323,7 +351,7 @@
         var submitBtn = registerForm.querySelector('button[type="submit"]');
         if (submitBtn) {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Register as New Patient';
+          submitBtn.textContent = '➕ Register & Create Patient';
         }
       }
     });
@@ -1140,14 +1168,19 @@
 
       var holder = document.getElementById('actual-qr-holder');
       if (window.QRCode && holder) {
-        new window.QRCode(holder, {
-          text: token,
-          width: 180,
-          height: 180,
-          colorDark: "#0F766E",
-          colorLight: "#ffffff",
-          correctLevel: window.QRCode.CorrectLevel.M
-        });
+        try {
+          new window.QRCode(holder, {
+            text: token,
+            width: 180,
+            height: 180,
+            colorDark: "#0F766E",
+            colorLight: "#ffffff",
+            correctLevel: window.QRCode.CorrectLevel.M
+          });
+        } catch (e) {
+          console.warn('[QR] Falling back to high-res SVG renderer:', e);
+          holder.innerHTML = renderQrSvg(token);
+        }
       } else if (holder) {
         holder.innerHTML = renderQrSvg(token);
       }

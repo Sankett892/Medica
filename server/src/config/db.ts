@@ -7,6 +7,17 @@ export async function connectDB(customUri?: string): Promise<typeof mongoose> {
     return mongoose;
   }
 
+  // Prevent unhandled error events on mongoose connection from crashing process
+  mongoose.connection.on('error', (err) => {
+    console.warn('[DB] Mongoose connection error (recovering):', err.message || err);
+  });
+  mongoose.connection.on('disconnected', () => {
+    console.warn('[DB] Mongoose disconnected. Waiting for auto-reconnect...');
+  });
+  mongoose.connection.on('reconnected', () => {
+    console.log('[DB] Mongoose successfully reconnected to MongoDB Atlas');
+  });
+
   try {
     const conn = await mongoose.connect(uri, {
       autoIndex: !config.isProduction,

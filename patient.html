@@ -69,15 +69,23 @@
       --phone-stage-bg: #e8eaee;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; font-family: var(--font, 'Inter', sans-serif); }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      height: auto;
+      overflow-y: auto !important;
+      font-family: var(--font, 'Inter', sans-serif);
+    }
     .portal-stage {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
+      flex: 1 1 auto;
       min-height: calc(100vh - 52px);
-      padding: 24px 16px 48px;
+      padding: 24px 16px 100px;
       background: var(--phone-stage-bg);
+      overflow-y: visible;
     }
     .phone-frame {
       position: relative;
@@ -199,12 +207,14 @@
     .auth-container {
       width: 100%;
       max-width: 480px;
-      margin: 40px auto;
+      margin: 20px auto 80px;
       padding: 32px;
       background: var(--surface, #ffffff);
       border-radius: 20px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.08);
       border: 1px solid var(--border, #E2E8F0);
+      position: relative;
+      z-index: 10;
     }
     .auth-brand {
       display: flex;
@@ -328,6 +338,11 @@
       <a href="admin.html" class="demo-tab" style="text-decoration:none;">📊 Admin &amp; Pune Map</a>
     </div>
 
+    <!-- Direct Switch / Create Patient Button -->
+    <button id="btn-patient-switch-account" style="display:inline-flex; align-items:center; gap:5px; padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; margin-left:8px; background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.25); cursor:pointer;" title="Register new patient or switch user">
+      ➕ Create / Switch Patient
+    </button>
+
     <!-- PWA Install Button -->
     <button id="btn-pwa-install" class="hm-btn hm-btn--primary" style="display:none; align-items:center; gap:6px; padding:6px 12px; font-size:12px; font-weight:600; border-radius:8px; margin-left:8px; background:#0F766E; color:#fff; border:none; cursor:pointer;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -381,8 +396,8 @@
 
       <!-- Tab Switcher: Sign In vs Register -->
       <div style="display:flex; background:var(--surface-2, #F1F5F9); padding:4px; border-radius:12px; margin-bottom:18px; gap:4px;">
-        <button id="tab-patient-signin" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:var(--surface, #fff); color:var(--text, #172B3A); box-shadow:0 1px 3px rgba(0,0,0,0.08);">Sign In</button>
-        <button id="tab-patient-register" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B);">Create New Account</button>
+        <button id="tab-patient-signin" type="button" style="flex:1; padding:10px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:var(--surface, #fff); color:var(--text, #172B3A); box-shadow:0 1px 3px rgba(0,0,0,0.08);">Sign In</button>
+        <button id="tab-patient-register" type="button" style="flex:1; padding:10px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B);">➕ Create Patient / Register</button>
       </div>
 
       <div id="auth-error-banner" style="display:none; padding:10px 14px; background:#FEF2F2; color:#B91C1C; border-radius:10px; font-size:13px; margin-bottom:16px;"></div>
@@ -398,7 +413,9 @@
             <label for="patient-password">Password / ABHA PIN</label>
             <input type="password" id="patient-password" placeholder="••••••••" autocomplete="current-password" required />
           </div>
-          <button type="submit" class="hm-btn hm-btn--primary" style="width:100%; padding:12px; font-size:14px; font-weight:600; background:#0F766E;">Sign In as Patient / User</button>
+          <button type="submit" id="btn-patient-signin-submit" class="hm-btn hm-btn--primary" style="width:100%; padding:14px; font-size:15px; font-weight:700; background:#0F766E !important; color:#ffffff !important; border:none; border-radius:10px; cursor:pointer; margin-top:14px; box-shadow:0 4px 12px rgba(15,118,110,0.35); display:block; position:relative; z-index:100; min-height:48px;">
+            Sign In as Patient / User
+          </button>
         </form>
 
         <details style="margin-top: 16px; font-size: 11px; color: var(--text-2, #64748B); background: var(--surface-2, #F8FAFC); border: 1px solid var(--border, #E2E8F0); border-radius: 8px; padding: 8px 12px;">
@@ -416,21 +433,21 @@
       <div id="pane-patient-register" style="display:none;">
         <form id="patient-register-form">
           <div class="auth-field">
-            <label for="reg-patient-name">Full Name</label>
+            <label for="reg-patient-name">Full Name *</label>
             <input type="text" id="reg-patient-name" placeholder="e.g. Ramesh Kumar" required />
           </div>
           <div class="auth-field">
-            <label for="reg-patient-email">Email Address</label>
+            <label for="reg-patient-email">Email Address *</label>
             <input type="email" id="reg-patient-email" placeholder="ramesh.kumar@example.com" required />
           </div>
           <div class="auth-field">
-            <label for="reg-patient-password">Set Password (min 6 chars)</label>
+            <label for="reg-patient-password">Set Password (min 6 chars) *</label>
             <input type="password" id="reg-patient-password" placeholder="••••••••" minlength="6" required />
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="auth-field">
               <label for="reg-patient-gender">Gender</label>
-              <select id="reg-patient-gender" style="width:100%; padding:10px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px;">
+              <select id="reg-patient-gender" style="width:100%; padding:10px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px; background:#fff;">
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -438,7 +455,7 @@
             </div>
             <div class="auth-field">
               <label for="reg-patient-blood">Blood Group</label>
-              <select id="reg-patient-blood" style="width:100%; padding:10px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px;">
+              <select id="reg-patient-blood" style="width:100%; padding:10px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px; background:#fff;">
                 <option value="O+">O+</option>
                 <option value="O-">O-</option>
                 <option value="A+">A+</option>
@@ -451,10 +468,47 @@
             </div>
           </div>
           <div class="auth-field">
-            <label for="reg-patient-dob">Date of Birth</label>
+            <label for="reg-patient-taluka">Pune District Taluka (Surveillance Region) *</label>
+            <select id="reg-patient-taluka" style="width:100%; padding:11px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px; background:#fff; font-weight:600; color:#172B3A;">
+              <option value="Junnar">Junnar Taluka</option>
+              <option value="Ambegaon">Ambegaon Taluka</option>
+              <option value="Khed">Khed Taluka</option>
+              <option value="Maval">Maval Taluka</option>
+              <option value="Mulshi">Mulshi Taluka</option>
+              <option value="Pune" selected>Pune Taluka</option>
+              <option value="Haveli">Haveli Taluka</option>
+              <option value="Shirur">Shirur Taluka</option>
+              <option value="Velhe">Velhe Taluka</option>
+              <option value="Bhor">Bhor Taluka</option>
+              <option value="Purandar">Purandar Taluka</option>
+              <option value="Daund">Daund Taluka</option>
+              <option value="Baramati">Baramati Taluka</option>
+              <option value="Indapur">Indapur Taluka</option>
+            </select>
+            <div style="margin-top: 6px; padding: 8px 12px; background: rgba(15, 118, 110, 0.08); border: 1px solid rgba(15, 118, 110, 0.25); border-radius: 8px; font-size: 12px; color: #0F766E; font-weight: 600; line-height: 1.4;">
+              📊 <strong>Admin Surveillance Notice:</strong> Registering this patient will immediately reflect as an increased (+1) active affected case count on the Admin Pune Disease Map for the selected Taluka.
+            </div>
+          </div>
+          <div class="auth-field">
+            <label for="reg-patient-condition">Presenting Clinical Condition / Disease *</label>
+            <select id="reg-patient-condition" style="width:100%; padding:10px 14px; border:1px solid var(--border-strong, #CBD5E1); border-radius:10px; font-size:14px; background:#fff; color:#172B3A;">
+              <option value="Vector-Borne (Dengue & Chikungunya)">Vector-Borne (Dengue &amp; Chikungunya)</option>
+              <option value="Viral Fever & Infection Surveillance" selected>Viral Fever &amp; Infection Surveillance (ARI / Flu)</option>
+              <option value="Bronchial Asthma & Respiratory">Bronchial Asthma &amp; Respiratory</option>
+              <option value="Acute Diarrheal Disease (ADD / Gastroenteritis)">Acute Diarrheal Disease (ADD / Gastroenteritis)</option>
+              <option value="Hypertension & Cardiovascular">Hypertension &amp; Cardiovascular</option>
+              <option value="Diabetes Mellitus Monitoring">Diabetes Mellitus Monitoring</option>
+              <option value="Dermatological conditions">Dermatological &amp; Skin Conditions</option>
+              <option value="General Health / Routine Checkup">General Health &amp; Primary Care</option>
+            </select>
+          </div>
+          <div class="auth-field">
+            <label for="reg-patient-dob">Date of Birth *</label>
             <input type="date" id="reg-patient-dob" value="1995-05-15" required />
           </div>
-          <button type="submit" class="hm-btn hm-btn--primary" style="width:100%; padding:12px; font-size:14px; font-weight:600; background:#0F766E;">Register as New Patient</button>
+          <button type="submit" id="btn-patient-register-submit" class="hm-btn hm-btn--primary" style="width:100%; padding:14px; font-size:15px; font-weight:700; background:#0F766E !important; color:#ffffff !important; border:none; border-radius:10px; cursor:pointer; margin-top:14px; box-shadow:0 4px 12px rgba(15,118,110,0.35); display:block; position:relative; z-index:100; min-height:48px;">
+            ➕ Register &amp; Create Patient
+          </button>
         </form>
       </div>
 

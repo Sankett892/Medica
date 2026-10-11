@@ -47,7 +47,7 @@ export class QRService {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-28110' }) || await Patient.findOne({ identifiers: 'HMX-P-45520' });
       } else if (up.includes('PRIYA') || up.includes('45520')) {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-45520' });
-      } else if (up.includes('ANANYA') || up.includes('20481') || up.includes('DEMO') || up.startsWith('HMX-QR')) {
+      } else {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-20481' }) || await Patient.findOne();
       }
 
@@ -82,7 +82,8 @@ export class QRService {
       token.toUpperCase().includes('ROHAN') ||
       token.includes('20481') ||
       token.includes('31877') ||
-      token.includes('45520');
+      token.includes('45520') ||
+      token.toUpperCase().startsWith('HMX-QR');
 
     if (qr.status === 'used' && !isDemoToken) {
       await createAuditEvent({

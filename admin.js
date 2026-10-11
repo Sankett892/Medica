@@ -25,6 +25,7 @@
     currentView: 'pune-map',
     overview: null,
     surveillance: null,
+    surveillancePeriod: 30,
     geographic: null,
     facilities: null,
     auditLogs: [],
@@ -48,6 +49,8 @@
             renderPuneMapView();
           } else if (state.currentView === 'followups') {
             renderFollowUpsView();
+          } else if (state.currentView === 'surveillance') {
+            renderSurveillanceView();
           }
         });
         socket.on('survey:submitted', function (data) {
@@ -59,6 +62,8 @@
             renderPuneMapView();
           } else if (state.currentView === 'followups') {
             renderFollowUpsView();
+          } else if (state.currentView === 'surveillance') {
+            renderSurveillanceView();
           }
         });
       }
@@ -393,71 +398,438 @@
     });
   }
 
-  // 2. SURVEILLANCE VIEW
+  // 2. SURVEILLANCE VIEW WITH DYNAMIC TIME PERIOD & ALL 8 TEMPLATES
   async function renderSurveillanceView() {
     viewTitle.textContent = 'Epidemiological Disease Surveillance';
-    viewSub.textContent = '14-day syndromic trends, baseline comparisons, and automated cluster detection';
+    viewSub.textContent = 'Multi-condition syndromic monitoring across all 8 supported clinical templates with dynamic time-window growth rate analytics';
 
-    viewRoot.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-2);">Loading disease surveillance data...</div>';
+    var currentPeriod = state.surveillancePeriod || 30;
+    viewRoot.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-2);"><div class="pulse" style="display:inline-block; margin-bottom:8px;"></div><br>Loading real-time surveillance data from MongoDB Atlas (' + currentPeriod + '-day window)...</div>';
 
     try {
-      var res = await api.get('/admin/surveillance');
-      state.surveillance = res.data;
-      var lc = (res.data && res.data.liveCounts) || {};
+      var res = await api.get('/admin/surveillance?period=' + currentPeriod);
+      var data = res.data || {};
+      state.surveillance = data;
 
-      var conditions = [
-        { name: 'Acute Respiratory Illness (ARI / Flu)', cases: lc.flu || 1420, trend: '+4%', status: 'Normal', color: '#0F766E' },
-        { name: 'Vector-Borne (Dengue / Chikungunya)', cases: lc.dengue || 680, trend: '+28%', status: 'Surge Alert', color: '#DC2626' },
-        { name: 'Acute Diarrheal / Enteric', cases: lc.diarrheal || 410, trend: '-6%', status: 'Normal', color: '#2563EB' },
-        { name: 'Cardiovascular Emergencies', cases: lc.cardio || 290, trend: '+2%', status: 'Normal', color: '#7C3AED' }
+      var conditions = data.conditions || [];
+      var period = data.period || currentPeriod;
+      var totalObserved = data.totalObserved || 0;
+      var totalActive = data.totalActive || 0;
+      var totalRecovered = data.totalRecovered || 0;
+      var overallGrowthLabel = data.overallGrowthLabel || '0.0%';
+      var alertsCount = data.alertsCount || 0;
+
+      var periodOptions = [
+        { value: 7, label: '7 Days (Weekly)' },
+        { value: 14, label: '14 Days (Fortnightly)' },
+        { value: 30, label: '30 Days (Monthly Baseline)' },
+        { value: 60, label: '60 Days (Bi-Monthly)' },
+        { value: 90, label: '90 Days (Quarterly)' }
       ];
 
       var html = `
-        <div class="od-stack" style="--od-gap: 20px;">
-          <div class="od-grid" style="--od-cols: 2; --od-gap: 16px;">
-            ${conditions.map(function (c) {
-              return `
-                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px;">
-                  <div class="od-row" style="justify-content: space-between; margin-bottom: 8px;">
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--text);">${esc(c.name)}</h3>
-                    <span class="hm-badge ${c.status === 'Surge Alert' ? 'hm-badge--danger' : 'hm-badge--success'}">${esc(c.status)}</span>
-                  </div>
-                  <div class="od-row" style="gap: 12px; margin-bottom: 14px;">
-                    <div style="font-size: 28px; font-weight: 800; color: ${c.color};">${c.cases.toLocaleString()}</div>
-                    <div style="font-size: 13px; font-weight: 600; color: ${c.trend.startsWith('+2') ? '#DC2626' : 'var(--text-2)'};">${esc(c.trend)} vs baseline</div>
-                  </div>
-                  <!-- SVG Trend Sparkline -->
-                  <div style="height: 60px; width: 100%; background: var(--surface-2); border-radius: 8px; overflow: hidden; display: flex; align-items: flex-end; padding: 6px 12px;">
-                    ${renderSparklineSvg(c.name, c.color)}
-                  </div>
-                </div>
-              `;
-            }).join('')}
+        <div class="od-stack" style="--od-gap: 22px;">
+
+          <!-- Top Controls & Time Period Selector Bar -->
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 22px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-2); margin-bottom: 6px;">
+                ⏱️ Surveillance Analysis Window &amp; Growth Rate Period
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;" role="group" aria-label="Time period selector">
+                ${periodOptions.map(function (opt) {
+                  var isActive = opt.value === period;
+                  return `
+                    <button type="button" class="btn-period-select" data-period="${opt.value}" style="padding: 7px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid ${isActive ? '#0F766E' : 'var(--border)'}; background: ${isActive ? '#0F766E' : 'var(--surface-2)'}; color: ${isActive ? '#ffffff' : 'var(--text)'}; box-shadow: ${isActive ? '0 2px 6px rgba(15,118,110,0.3)' : 'none'};">
+                      ${esc(opt.label)}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="text-align: right;">
+                <div style="font-size: 11px; color: var(--text-2); font-weight: 600;">Epidemiological Baseline</div>
+                <div style="font-size: 13px; font-weight: 700; color: #0F766E;">Prior ${period}-Day Window Comparison</div>
+              </div>
+              <span class="live-badge" style="padding: 6px 12px;">
+                <span class="pulse"></span> Live Atlas Sync
+              </span>
+            </div>
           </div>
+
+          <!-- Surveillance Summary KPIs -->
+          <div class="od-grid" style="--od-cols: 4; --od-gap: 14px;">
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-2);">Total Intake (${period}d Window)</div>
+              <div class="od-row" style="align-items: baseline; justify-content: space-between; margin-top: 6px;">
+                <div style="font-size: 26px; font-weight: 800; color: var(--text);">${totalObserved.toLocaleString()}</div>
+                <span class="hm-badge ${overallGrowthLabel.startsWith('+') ? 'hm-badge--danger' : 'hm-badge--success'}" style="font-size: 11px;">
+                  ${esc(overallGrowthLabel)} vs prior ${period}d
+                </span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-2); margin-top: 6px;">Direct MongoDB clinical intake</div>
+            </div>
+
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-2);">Active Affected Cases</div>
+              <div class="od-row" style="align-items: baseline; justify-content: space-between; margin-top: 6px;">
+                <div style="font-size: 26px; font-weight: 800; color: #DC2626;">${totalActive.toLocaleString()}</div>
+                <span class="hm-badge hm-badge--success" style="font-size: 11px;">${totalRecovered} Recovered</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-2); margin-top: 6px;">Unrecovered active encounters</div>
+            </div>
+
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-2);">Supported Disease Templates</div>
+              <div class="od-row" style="align-items: baseline; justify-content: space-between; margin-top: 6px;">
+                <div style="font-size: 26px; font-weight: 800; color: #0F766E;">${conditions.length}</div>
+                <span class="hm-badge hm-badge--info" style="font-size: 11px;">All 8 Active</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-2); margin-top: 6px;">Full syndromic coverage</div>
+            </div>
+
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-2);">Epidemic Threshold Alerts</div>
+              <div class="od-row" style="align-items: baseline; justify-content: space-between; margin-top: 6px;">
+                <div style="font-size: 26px; font-weight: 800; color: ${alertsCount > 0 ? '#D97706' : '#15803D'};">${alertsCount}</div>
+                <span class="hm-badge ${alertsCount > 0 ? 'hm-badge--danger' : 'hm-badge--success'}" style="font-size: 11px;">
+                  ${alertsCount > 0 ? 'Surge Protocol' : 'Normal'}
+                </span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-2); margin-top: 6px;">Growth rate &ge; 5% triggers alert</div>
+            </div>
+          </div>
+
+          <!-- All 8 Supported Disease Surveillance Templates -->
+          <div>
+            <div class="od-row" style="justify-content: space-between; align-items: center; margin-bottom: 14px;">
+              <div>
+                <h2 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text);">8 Supported Surveillance Templates</h2>
+                <p style="margin: 3px 0 0; font-size: 12px; color: var(--text-2);">Real daily case trendlines and period growth rates calculated from persistent patient encounters</p>
+              </div>
+              <div style="font-size: 12px; color: var(--text-2); font-weight: 600;">
+                Showing <strong>${conditions.length}</strong> syndromic templates
+              </div>
+            </div>
+
+            <div class="od-grid" style="--od-cols: 2; --od-gap: 16px;">
+              ${conditions.map(function (c, idx) {
+                var statusBadgeClass = 'hm-badge--success';
+                var statusColor = '#15803D';
+                if (c.status === 'Surge Alert') {
+                  statusBadgeClass = 'hm-badge--danger';
+                  statusColor = '#DC2626';
+                } else if (c.status === 'Elevated') {
+                  statusBadgeClass = 'hm-badge--warning';
+                  statusColor = '#D97706';
+                } else if (c.status === 'Declining') {
+                  statusBadgeClass = 'hm-badge--info';
+                  statusColor = '#2563EB';
+                }
+
+                var growthColor = '#64748B';
+                if (c.growthRate > 0) growthColor = '#DC2626';
+                else if (c.growthRate < 0) growthColor = '#15803D';
+
+                return `
+                  <div class="surveillance-card" data-disease-id="${esc(c.id)}" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; transition: transform 0.15s, box-shadow 0.15s; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <!-- Card Header -->
+                      <div class="od-row" style="justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: ${c.color}; margin-bottom: 3px;">
+                            Template #${idx + 1} • ${esc(c.categoryName || 'Surveillance')}
+                          </div>
+                          <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text);">${esc(c.name)}</h3>
+                        </div>
+                        <div class="od-row" style="gap: 6px;">
+                          <span class="hm-badge" style="font-size: 11px; font-weight: 700; background: ${statusColor}18; color: ${statusColor}; border: 1px solid ${statusColor}33;">
+                            ${esc(c.status)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Key Counts & Growth Rate -->
+                      <div class="od-row" style="justify-content: space-between; align-items: center; margin-bottom: 14px; background: var(--surface-2); padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border);">
+                        <div>
+                          <div style="font-size: 11px; font-weight: 600; color: var(--text-2);">Active Affected Cases</div>
+                          <div style="font-size: 26px; font-weight: 800; color: ${c.color}; line-height: 1.1;">
+                            ${c.activeCases.toLocaleString()}
+                            <span style="font-size: 12px; font-weight: 600; color: var(--text-2); margin-left: 4px;">(${c.totalCases} total)</span>
+                          </div>
+                          <div style="font-size: 11px; color: #15803D; font-weight: 600; margin-top: 2px;">
+                            ✓ ${c.recoveredCases} fully recovered
+                          </div>
+                        </div>
+
+                        <div style="text-align: right;">
+                          <div style="font-size: 11px; font-weight: 600; color: var(--text-2);">${period}-Day Growth Rate</div>
+                          <div style="font-size: 20px; font-weight: 800; color: ${growthColor};">
+                            ${c.growthRate > 0 ? '▲ ' : (c.growthRate < 0 ? '▼ ' : '')}${esc(c.growthRateLabel)}
+                          </div>
+                          <div style="font-size: 11px; color: var(--text-2); margin-top: 2px;">
+                            ${c.periodCases} cases vs ${c.priorPeriodCases} prior
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Real Data Graph Area -->
+                      <div style="margin-bottom: 12px;">
+                        <div class="od-row" style="justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--text-2); margin-bottom: 6px;">
+                          <span>Daily Cases Trend (${period} Days)</span>
+                          <span style="color: ${c.color};">${c.periodCases} intake in window</span>
+                        </div>
+                        <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 6px;">
+                          ${renderRealSurveillanceSvg(c.points, c.color, 75, 420)}
+                          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); margin-top: 6px; border-top: 1px dashed var(--border); padding-top: 4px;">
+                            <span>${c.points && c.points[0] ? esc(c.points[0].label) : ''}</span>
+                            <span style="font-weight: 600; color: var(--text);">Hover dots for daily count</span>
+                            <span>Today (${c.points && c.points[c.points.length - 1] ? esc(c.points[c.points.length - 1].label) : ''})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Card Actions -->
+                    <div class="od-row" style="justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border); margin-top: 4px;">
+                      <button type="button" class="hm-btn hm-btn--secondary btn-inspect-condition" data-disease-id="${esc(c.id)}" style="padding: 7px 14px; font-size: 12px; font-weight: 600; border-radius: 8px;">
+                        🔍 Inspect Growth &amp; Daily Log
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
         </div>
+
+        <!-- Analytical Deep Dive Modal Root -->
+        <div id="surveillance-modal-root"></div>
       `;
 
       viewRoot.innerHTML = html;
+
+      // Attach event listeners for time period selector buttons
+      var periodBtns = viewRoot.querySelectorAll('.btn-period-select');
+      periodBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var newPeriod = parseInt(this.getAttribute('data-period'), 10);
+          if (newPeriod && newPeriod !== state.surveillancePeriod) {
+            state.surveillancePeriod = newPeriod;
+            renderSurveillanceView();
+          }
+        });
+      });
+
+      // Attach event listeners for inspecting conditions
+      var inspectBtns = viewRoot.querySelectorAll('.btn-inspect-condition');
+      inspectBtns.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var diseaseId = this.getAttribute('data-disease-id');
+          openConditionDeepDiveModal(diseaseId);
+        });
+      });
+
     } catch (err) {
       viewRoot.innerHTML = '<div style="color: #DC2626; padding: 30px;">Error loading surveillance: ' + esc(err.message) + '</div>';
     }
   }
 
-  function renderSparklineSvg(name, color) {
-    var points = [30, 35, 32, 40, 38, 45, 42, 50, 48, 55, 52, 60, 58, 70];
-    if (name.includes('Diarrheal')) points = [55, 52, 50, 48, 46, 44, 42, 40, 38, 36, 35, 34, 33, 30];
-    var max = Math.max.apply(null, points);
-    var svgPoints = points.map(function (v, i) {
-      var x = (i / (points.length - 1)) * 340;
-      var y = 50 - (v / max) * 40;
-      return x + ',' + y;
+  // Real SVG graph plotter from database points
+  function renderRealSurveillanceSvg(points, color, height, width) {
+    height = height || 75;
+    width = width || 420;
+
+    if (!points || points.length === 0) {
+      return '<div style="height:' + height + 'px; display:flex; align-items:center; justify-content:center; color:var(--text-2); font-size:12px;">No surveillance records in this period</div>';
+    }
+
+    var counts = points.map(function (p) { return Number(p.count) || 0; });
+    var max = Math.max.apply(null, counts);
+    if (max === 0) max = 1;
+
+    var padX = 10;
+    var padY = 8;
+    var usableW = width - (2 * padX);
+    var usableH = height - (2 * padY);
+
+    var coords = points.map(function (p, idx) {
+      var x = padX + (idx / Math.max(1, points.length - 1)) * usableW;
+      var y = height - padY - ((Number(p.count) || 0) / max) * usableH;
+      return { x: x, y: y, count: p.count, date: p.date, label: p.label };
+    });
+
+    var linePointsStr = coords.map(function (c) {
+      return c.x.toFixed(1) + ',' + c.y.toFixed(1);
     }).join(' ');
 
+    var areaPointsStr = linePointsStr + ' ' + (padX + usableW).toFixed(1) + ',' + (height - padY).toFixed(1) + ' ' + padX.toFixed(1) + ',' + (height - padY).toFixed(1);
+    var gradId = 'grad-' + Math.random().toString(36).substring(2, 9);
+
+    var dotsHtml = coords.filter(function (c) { return c.count > 0; }).map(function (c) {
+      return `
+        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="#ffffff" stroke="${color}" stroke-width="2.5">
+          <title>${esc(c.label)}: ${c.count} cases intake</title>
+        </circle>
+      `;
+    }).join('');
+
     return `
-      <svg width="100%" height="50" viewBox="0 0 340 50" preserveAspectRatio="none">
-        <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${svgPoints}" />
+      <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="overflow: visible;">
+        <defs>
+          <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${color}" stop-opacity="0.32" />
+            <stop offset="100%" stop-color="${color}" stop-opacity="0.02" />
+          </linearGradient>
+        </defs>
+        <!-- Horizontal zero axis -->
+        <line x1="${padX}" y1="${height - padY}" x2="${padX + usableW}" y2="${height - padY}" stroke="#E2E8F0" stroke-width="1" stroke-dasharray="3 3" />
+        <!-- Area fill -->
+        <polygon fill="url(#${gradId})" points="${areaPointsStr}" />
+        <!-- Trend polyline -->
+        <polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${linePointsStr}" />
+        <!-- Data point circles with hover titles -->
+        ${dotsHtml}
       </svg>
     `;
+  }
+
+  // Analytical Deep Dive Modal for any of the 8 disease templates
+  function openConditionDeepDiveModal(diseaseId) {
+    if (!state.surveillance || !state.surveillance.conditions) return;
+    var c = state.surveillance.conditions.find(function (item) { return item.id === diseaseId; });
+    if (!c) return;
+
+    var modalRoot = byId('surveillance-modal-root');
+    if (!modalRoot) return;
+
+    var period = state.surveillancePeriod || 30;
+    var recoveryRate = c.totalCases > 0 ? Math.round((c.recoveredCases / c.totalCases) * 100) : 0;
+
+    var modalHtml = `
+      <div id="condition-modal-backdrop" style="position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: var(--surface, #ffffff); border-radius: 20px; max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,0.2); padding: 26px;">
+          
+          <!-- Modal Header -->
+          <div class="od-row" style="justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: ${c.color};">
+                Template Deep Dive • ${esc(c.categoryName || 'Surveillance')}
+              </div>
+              <h2 style="margin: 4px 0 0; font-size: 20px; font-weight: 800; color: var(--text);">
+                ${esc(c.name)}
+              </h2>
+            </div>
+            <button type="button" id="btn-close-condition-modal" style="background: var(--surface-2); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-2);">
+              ✕
+            </button>
+          </div>
+
+          <!-- Growth Rate Formula & Calculation Callout -->
+          <div style="background: ${c.color}10; border: 1px solid ${c.color}33; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px;">
+            <div style="font-size: 12px; font-weight: 700; color: ${c.color}; margin-bottom: 4px;">
+              📈 ${period}-Day Growth Rate Calculation: ${esc(c.growthRateLabel)}
+            </div>
+            <div style="font-size: 12px; color: var(--text); line-height: 1.5;">
+              Current window intake: <strong>${c.periodCases} cases</strong> in past ${period} days vs prior window intake: <strong>${c.priorPeriodCases} cases</strong>.
+              <br>
+              <span style="font-size: 11px; color: var(--text-2);">Formula: ((Current Period - Prior Period) / max(Prior Period, 1)) × 100 = <strong>${esc(c.growthRateLabel)}</strong>. Status classified as <strong>${esc(c.status)}</strong>.</span>
+            </div>
+          </div>
+
+          <!-- Quick Stats Grid -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+            <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; text-align: center;">
+              <div style="font-size: 11px; color: var(--text-2); font-weight: 600;">Total Cases</div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--text); margin-top: 4px;">${c.totalCases}</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; text-align: center;">
+              <div style="font-size: 11px; color: var(--text-2); font-weight: 600;">Active Cases</div>
+              <div style="font-size: 20px; font-weight: 800; color: #DC2626; margin-top: 4px;">${c.activeCases}</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; text-align: center;">
+              <div style="font-size: 11px; color: var(--text-2); font-weight: 600;">Recovered</div>
+              <div style="font-size: 20px; font-weight: 800; color: #15803D; margin-top: 4px;">${c.recoveredCases}</div>
+            </div>
+            <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; text-align: center;">
+              <div style="font-size: 11px; color: var(--text-2); font-weight: 600;">Recovery Rate</div>
+              <div style="font-size: 20px; font-weight: 800; color: #0F766E; margin-top: 4px;">${recoveryRate}%</div>
+            </div>
+          </div>
+
+          <!-- Expanded Graph -->
+          <div style="margin-bottom: 20px;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px;">
+              Epidemiological Curve (${period}-Day Daily Distribution)
+            </div>
+            <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 16px 14px 10px;">
+              ${renderRealSurveillanceSvg(c.points, c.color, 110, 600)}
+            </div>
+          </div>
+
+          <!-- Daily Points Log Table -->
+          <div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px;">
+              Daily Surveillance Time-Series Ledger
+            </div>
+            <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                <thead style="background: var(--surface-2); position: sticky; top: 0;">
+                  <tr>
+                    <th style="padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-2);">Date</th>
+                    <th style="padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-2);">Timeline Day</th>
+                    <th style="padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-2); text-align: right;">Daily Cases</th>
+                    <th style="padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text-2); text-align: right;">Cumulative</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(c.points || []).slice().reverse().map(function (p) {
+                    return `
+                      <tr style="border-bottom: 1px solid var(--border-subtle, #F1F5F9); background: ${p.count > 0 ? c.color + '0a' : 'transparent'};">
+                        <td style="padding: 8px 12px; font-weight: 600; color: var(--text);">${esc(p.date)}</td>
+                        <td style="padding: 8px 12px; color: var(--text-2);">${esc(p.label)}</td>
+                        <td style="padding: 8px 12px; text-align: right; font-weight: 700; color: ${p.count > 0 ? c.color : 'var(--text-2)'};">
+                          ${p.count}
+                        </td>
+                        <td style="padding: 8px 12px; text-align: right; font-weight: 600; color: var(--text);">
+                          ${p.cumulative}
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Dismiss Button -->
+          <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+            <button type="button" id="btn-close-modal-bottom" class="hm-btn hm-btn--primary" style="padding: 10px 20px; font-size: 13px; font-weight: 700; border-radius: 10px; background: #0F766E;">
+              Close Deep Dive
+            </button>
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    modalRoot.innerHTML = modalHtml;
+
+    function closeModal() {
+      modalRoot.innerHTML = '';
+    }
+
+    byId('btn-close-condition-modal').addEventListener('click', closeModal);
+    byId('btn-close-modal-bottom').addEventListener('click', closeModal);
+    byId('condition-modal-backdrop').addEventListener('click', function (e) {
+      if (e.target.id === 'condition-modal-backdrop') {
+        closeModal();
+      }
+    });
   }
 
   // 3. GEOGRAPHIC VIEW WITH K-ANONYMITY SLIDER

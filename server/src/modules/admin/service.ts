@@ -24,6 +24,116 @@ function generateSeries(n: number, base: number, amp: number, phase: number): nu
   return arr;
 }
 
+export interface DiseaseSurveillanceDef {
+  id: string;
+  name: string;
+  categoryName: string;
+  color: string;
+  icon: string;
+  matchPatterns: RegExp;
+}
+
+export const SURVEILLANCE_TEMPLATES: DiseaseSurveillanceDef[] = [
+  {
+    id: 'dengue',
+    name: 'Vector-Borne (Dengue & Chikungunya)',
+    categoryName: 'Dengue & Vector-Borne',
+    color: '#DC2626',
+    icon: 'activity',
+    matchPatterns: /dengue|vector|chikungunya|malaria/i
+  },
+  {
+    id: 'ari',
+    name: 'Viral Fever & Acute Respiratory (ARI / Flu)',
+    categoryName: 'ARI & Viral Fever',
+    color: '#0F766E',
+    icon: 'wind',
+    matchPatterns: /flu|influenza|respiratory|ari|viral|fever/i
+  },
+  {
+    id: 'asthma',
+    name: 'Bronchial Asthma & Chronic Respiratory',
+    categoryName: 'Bronchial Asthma',
+    color: '#0284C7',
+    icon: 'shield',
+    matchPatterns: /asthma|copd|bronch/i
+  },
+  {
+    id: 'diarrheal',
+    name: 'Acute Diarrheal Disease (ADD / Gastroenteritis)',
+    categoryName: 'ADD & Gastroenteritis',
+    color: '#2563EB',
+    icon: 'droplets',
+    matchPatterns: /diarrh|enteric|gastro|waterborne|cholera/i
+  },
+  {
+    id: 'cardio',
+    name: 'Hypertension & Cardiovascular Emergencies',
+    categoryName: 'Cardiovascular & Hypertension',
+    color: '#7C3AED',
+    icon: 'heart',
+    matchPatterns: /hyperten|cardio|heart|infarct|vascular/i
+  },
+  {
+    id: 'diabetes',
+    name: 'Diabetes Mellitus & Metabolic Monitoring',
+    categoryName: 'Diabetes Mellitus',
+    color: '#D97706',
+    icon: 'activity',
+    matchPatterns: /diabet|glucose|sugar|metabolic/i
+  },
+  {
+    id: 'dermatology',
+    name: 'Dermatological & Skin Infection Surveillance',
+    categoryName: 'Dermatological Conditions',
+    color: '#EA580C',
+    icon: 'disc',
+    matchPatterns: /derm|skin|rash|eczema/i
+  },
+  {
+    id: 'general',
+    name: 'General Health & Routine Primary Care',
+    categoryName: 'General Health / Primary Care',
+    color: '#4F46E5',
+    icon: 'check-circle',
+    matchPatterns: /general|routine|checkup|allergic|preventive/i
+  }
+];
+
+export function categorizeSurveillanceEncounter(enc: any): string {
+  const matchCategory = (str: string): string | null => {
+    if (!str) return null;
+    const lower = str.toLowerCase();
+    if (/dengue|vector|chikungunya|malaria/.test(lower)) return 'dengue';
+    if (/asthma|copd|bronch/.test(lower)) return 'asthma';
+    if (/diarrh|enteric|gastro|waterborne|cholera/.test(lower)) return 'diarrheal';
+    if (/hyperten|cardio|heart|infarct|vascular/.test(lower)) return 'cardio';
+    if (/diabet|glucose|sugar|metabolic/.test(lower)) return 'diabetes';
+    if (/derm|skin|rash|eczema/.test(lower)) return 'dermatology';
+    if (/flu|influenza|respiratory|ari|viral|fever/.test(lower)) return 'ari';
+    if (/general|routine|checkup|allergic|preventive/.test(lower)) return 'general';
+    return null;
+  };
+
+  // 1. Prioritize explicit diseaseCategory field
+  if (enc.diseaseCategory) {
+    const fromCat = matchCategory(enc.diseaseCategory);
+    if (fromCat) return fromCat;
+  }
+
+  // 2. Direct match on clinical diagnosis
+  if (enc.diagnosis) {
+    const fromDiag = matchCategory(enc.diagnosis);
+    if (fromDiag) return fromDiag;
+  }
+
+  // 3. Fallback to summary or clinical type
+  const fallback = matchCategory(`${enc.summary || ''} ${enc.type || ''}`);
+  if (fallback) return fallback;
+
+  return 'general';
+}
+
 export class AdminService {
   private kThreshold = config.ANALYTICS_K_THRESHOLD;
 
@@ -113,70 +223,181 @@ export class AdminService {
   }
 
   async getSurveillance(query: SurveillanceQuery) {
-    const period = query.period || 30;
-    const disease = query.disease || 'ili';
+    const period = Math.max(1, Math.min(365, Number(query.period) || 30));
+    const selectedDisease = query.disease || 'all';
 
-    // Count live diagnosed conditions from database
-    const [fluCount, dengueCount, diarrhealCount, cardioCount] = await Promise.all([
-      ClinicalResource.countDocuments({
-        $or: [
-          { 'fields.v': { $regex: /flu|influenza|respiratory|ari/i } },
-          { summary: { $regex: /flu|influenza|respiratory|ari/i } },
-          { type: { $regex: /flu|influenza|respiratory|ari/i } }
-        ]
-      }),
-      ClinicalResource.countDocuments({
-        $or: [
-          { 'fields.v': { $regex: /dengue|vector/i } },
-          { summary: { $regex: /dengue|vector/i } },
-          { type: { $regex: /dengue|vector/i } }
-        ]
-      }),
-      ClinicalResource.countDocuments({
-        $or: [
-          { 'fields.v': { $regex: /diarrhea|enteric|gastro/i } },
-          { summary: { $regex: /diarrhea|enteric|gastro/i } },
-          { type: { $regex: /diarrhea|enteric|gastro/i } }
-        ]
-      }),
-      ClinicalResource.countDocuments({
-        $or: [
-          { 'fields.v': { $regex: /cardio|heart|infarct/i } },
-          { summary: { $regex: /cardio|heart|infarct/i } },
-          { type: { $regex: /cardio|heart|infarct/i } }
-        ]
-      })
-    ]);
+    const now = new Date();
+    const periodMs = period * 24 * 60 * 60 * 1000;
+    const currentPeriodStart = new Date(now.getTime() - periodMs);
+    const priorPeriodStart = new Date(now.getTime() - 2 * periodMs);
 
-    const diseaseMap: Record<string, { base: number; amp: number; phase: number; name: string }> = {
-      ili: { base: 320 + fluCount * 12, amp: 90, phase: 2, name: 'Influenza-like illness' },
-      dengue: { base: 120 + dengueCount * 12, amp: 70, phase: 8, name: 'Dengue' },
-      add: { base: 180 + diarrhealCount * 12, amp: 55, phase: 15, name: 'Acute diarrheal disease' }
+    // Fetch live encounters from MongoDB Atlas
+    const allEncounters = await Encounter.find({}).sort({ occurredAt: 1 }).lean();
+
+    // Build day labels and date strings for the selected period
+    const dayBuckets: { dateStr: string; label: string; start: Date; end: Date }[] = [];
+    for (let i = period - 1; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+      const dayStart = new Date(d);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(d);
+      dayEnd.setUTCHours(23, 59, 59, 999);
+      dayBuckets.push({ dateStr, label, start: dayStart, end: dayEnd });
+    }
+
+    // Process each surveillance template from SURVEILLANCE_TEMPLATES
+    const conditions = SURVEILLANCE_TEMPLATES.map(tpl => {
+      // Find all encounters matching this template
+      const matchingEncounters = allEncounters.filter(e => categorizeSurveillanceEncounter(e) === tpl.id);
+
+      const totalCases = matchingEncounters.length;
+      const activeCases = matchingEncounters.filter(e => e.isRecovered !== true).length;
+      const recoveredCases = matchingEncounters.filter(e => e.isRecovered === true).length;
+
+      // Current period encounters
+      const periodEncounters = matchingEncounters.filter(e => {
+        const occ = e.occurredAt ? new Date(e.occurredAt) : (e.createdAt ? new Date(e.createdAt) : now);
+        return occ >= currentPeriodStart && occ <= now;
+      });
+      const periodCases = periodEncounters.length;
+
+      // Prior period encounters
+      const priorPeriodEncounters = matchingEncounters.filter(e => {
+        const occ = e.occurredAt ? new Date(e.occurredAt) : (e.createdAt ? new Date(e.createdAt) : now);
+        return occ >= priorPeriodStart && occ < currentPeriodStart;
+      });
+      const priorPeriodCases = priorPeriodEncounters.length;
+
+      // Growth rate calculation for this specific time period
+      let growthRate = 0;
+      let growthRateLabel = '0.0%';
+      if (priorPeriodCases > 0) {
+        growthRate = ((periodCases - priorPeriodCases) / priorPeriodCases) * 100;
+        growthRate = Math.round(growthRate * 10) / 10;
+        growthRateLabel = (growthRate > 0 ? '+' : '') + growthRate.toFixed(1) + '%';
+      } else if (periodCases > 0) {
+        growthRate = 100.0;
+        growthRateLabel = '+100.0%';
+      } else {
+        growthRate = 0.0;
+        growthRateLabel = '0.0%';
+      }
+
+      // Epidemic alert status classification
+      let status: 'Surge Alert' | 'Elevated' | 'Stable' | 'Declining' = 'Stable';
+      if (growthRate >= 20 && periodCases > 0) {
+        status = 'Surge Alert';
+      } else if (growthRate >= 5 && periodCases > 0) {
+        status = 'Elevated';
+      } else if (growthRate <= -5) {
+        status = 'Declining';
+      } else {
+        status = 'Stable';
+      }
+
+      // Daily data points for the time period
+      let runningCumulative = 0;
+      const prePeriodCount = matchingEncounters.filter(e => {
+        const occ = e.occurredAt ? new Date(e.occurredAt) : (e.createdAt ? new Date(e.createdAt) : now);
+        return occ < currentPeriodStart;
+      }).length;
+      runningCumulative = prePeriodCount;
+
+      const points = dayBuckets.map(bucket => {
+        const dayCount = matchingEncounters.filter(e => {
+          const occ = e.occurredAt ? new Date(e.occurredAt) : (e.createdAt ? new Date(e.createdAt) : now);
+          const dateStr = occ.toISOString().slice(0, 10);
+          return dateStr === bucket.dateStr;
+        }).length;
+        runningCumulative += dayCount;
+
+        return {
+          date: bucket.dateStr,
+          label: bucket.label,
+          count: dayCount,
+          cumulative: runningCumulative
+        };
+      });
+
+      const dailyCounts = points.map(p => p.count);
+      const cumulativeCounts = points.map(p => p.cumulative);
+
+      return {
+        id: tpl.id,
+        name: tpl.name,
+        categoryName: tpl.categoryName,
+        color: tpl.color,
+        icon: tpl.icon,
+        totalCases,
+        activeCases,
+        recoveredCases,
+        periodCases,
+        priorPeriodCases,
+        growthRate,
+        growthRateLabel,
+        status,
+        points,
+        sparkline: dailyCounts,
+        cumulativeSeries: cumulativeCounts
+      };
+    });
+
+    // Summary KPIs
+    const totalObserved = conditions.reduce((acc, c) => acc + c.periodCases, 0);
+    const totalAllTime = conditions.reduce((acc, c) => acc + c.totalCases, 0);
+    const totalActive = conditions.reduce((acc, c) => acc + c.activeCases, 0);
+    const totalRecovered = conditions.reduce((acc, c) => acc + c.recoveredCases, 0);
+    const priorTotal = conditions.reduce((acc, c) => acc + c.priorPeriodCases, 0);
+
+    let overallGrowthRate = 0;
+    if (priorTotal > 0) {
+      overallGrowthRate = Math.round(((totalObserved - priorTotal) / priorTotal) * 1000) / 10;
+    } else if (totalObserved > 0) {
+      overallGrowthRate = 100.0;
+    }
+    const overallGrowthLabel = (overallGrowthRate > 0 ? '+' : '') + overallGrowthRate.toFixed(1) + '%';
+
+    // Alerts count
+    const alertsCount = conditions.filter(c => c.status === 'Surge Alert' || c.status === 'Elevated').length;
+
+    // Backward-compatible live counts mapping
+    const liveCounts: Record<string, number> = {
+      flu: conditions.find(c => c.id === 'ari')?.totalCases || 0,
+      dengue: conditions.find(c => c.id === 'dengue')?.totalCases || 0,
+      diarrheal: conditions.find(c => c.id === 'diarrheal')?.totalCases || 0,
+      cardio: conditions.find(c => c.id === 'cardio')?.totalCases || 0,
+      asthma: conditions.find(c => c.id === 'asthma')?.totalCases || 0,
+      diabetes: conditions.find(c => c.id === 'diabetes')?.totalCases || 0,
+      dermatology: conditions.find(c => c.id === 'dermatology')?.totalCases || 0,
+      general: conditions.find(c => c.id === 'general')?.totalCases || 0
     };
 
-    const d = diseaseMap[disease] || diseaseMap.ili;
-    const fullTrend = generateSeries(30, d.base, d.amp, d.phase);
-    const observed = fullTrend.slice(fullTrend.length - period);
-    const forecast = generateSeries(14, d.base * 0.95, d.amp * 0.85, 20);
-    const total = observed.reduce((a, b) => a + b, 0);
+    const activeCondition = conditions.find(c => c.id === selectedDisease) || conditions[0];
+    const observed = activeCondition ? activeCondition.points.map(p => p.count) : [];
 
     return {
-      disease: { id: disease, name: d.name },
+      disease: { id: selectedDisease, name: activeCondition ? activeCondition.name : 'All Conditions' },
       period,
+      selectedDisease,
+      totalObserved,
+      totalAllTime,
+      totalActive,
+      totalRecovered,
+      overallGrowthRate,
+      overallGrowthLabel,
+      alertsCount,
+      conditions,
+      templates: conditions,
+      liveCounts,
       observed,
-      forecast,
-      totalObserved: total,
-      liveCounts: {
-        flu: 1420 + fluCount,
-        dengue: 680 + dengueCount,
-        diarrheal: 410 + diarrhealCount,
-        cardio: 290 + cardioCount
-      },
+      forecast: [],
       metrics: [
-        { label: `Total observed (${period}d)`, value: total.toLocaleString('en-IN'), delta: '+2.4%', dir: 'up', hint: 'vs previous window' },
-        { label: 'Reporting facilities', value: '212', delta: '+4', dir: 'up', hint: 'this week' },
-        { label: 'Reporting coverage', value: '94', unit: '%', delta: '-0.6%', dir: 'down', hint: 'facilities on time' },
-        { label: 'Data freshness', value: 'Real-time', unit: '', delta: 'Live Atlas Sync', dir: 'flat', hint: 'since last refresh' }
+        { label: `Total intake (${period}d)`, value: totalObserved.toLocaleString('en-IN'), delta: overallGrowthLabel, dir: overallGrowthRate >= 0 ? 'up' : 'down', hint: `vs prior ${period}d window` },
+        { label: 'Active affected cases', value: totalActive.toLocaleString('en-IN'), delta: `${totalRecovered} recovered`, dir: 'flat', hint: 'across 14 Pune talukas' },
+        { label: 'Surveillance templates', value: String(conditions.length), delta: 'All 8 Active', dir: 'flat', hint: 'comprehensive coverage' },
+        { label: 'Surge alerts', value: String(alertsCount), delta: alertsCount > 0 ? 'Active Monitoring' : 'Normal', dir: alertsCount > 0 ? 'up' : 'flat', hint: 'epidemiological threshold' }
       ]
     };
   }

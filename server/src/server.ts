@@ -5,6 +5,15 @@ import { connectDB } from './config/db.js';
 import { initSocketIO } from './config/socket.js';
 import { seedFacilities } from './seeds/facilities.js';
 
+// Global error handlers to keep backend alive under transient network or DB blips
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception caught gracefully:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 async function bootstrap() {
   try {
     // 1. Connect Database

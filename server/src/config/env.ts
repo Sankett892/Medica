@@ -14,9 +14,9 @@ const envSchema = z.object({
   CLERK_PUBLISHABLE_KEY: z.string().optional().default('pk_test_placeholder'),
   CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:8080'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 mins
-  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(500),
-  RATE_LIMIT_AUTH_MAX: z.coerce.number().default(50),
-  RATE_LIMIT_QR_MAX: z.coerce.number().default(30),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(1000),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().default(500),
+  RATE_LIMIT_QR_MAX: z.coerce.number().default(500),
   ANALYTICS_K_THRESHOLD: z.coerce.number().default(5),
   DEV_PREVIEW: z.enum(['true', 'false']).transform(v => v === 'true').default('true')
 });

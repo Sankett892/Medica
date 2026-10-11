@@ -1672,7 +1672,10 @@
             payload.age = parseInt(byId('reg-age').value, 10) || 30;
             payload.sex = byId('reg-sex').value;
             payload.bloodType = byId('reg-blood').value;
-            payload.locality = byId('reg-locality').value || 'Kothrud';
+            payload.locality = (byId('reg-taluka') ? byId('reg-taluka').value : (byId('reg-locality') ? byId('reg-locality').value : 'Pune'));
+            payload.taluka = payload.locality;
+            payload.region = payload.locality;
+            payload.diseaseCategory = byId('reg-condition') ? byId('reg-condition').value : 'Viral Fever & Infection Surveillance';
             payload.phone = byId('reg-phone').value.trim() || '+91 98000 00000';
           } else {
             payload.specialty = byId('reg-doc-specialty').value;

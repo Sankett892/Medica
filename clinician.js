@@ -100,11 +100,15 @@
   function showAuth() {
     authView.style.display = 'block';
     appView.style.display = 'none';
+    var mobNav = byId('clinician-mobile-bottom-nav');
+    if (mobNav) mobNav.style.display = 'none';
   }
 
   function showApp() {
     authView.style.display = 'none';
     appView.style.display = 'block';
+    var mobNav = byId('clinician-mobile-bottom-nav');
+    if (mobNav) mobNav.style.display = '';
     initSocketConnection();
 
     if (state.profile) {
@@ -265,32 +269,42 @@
   }
 
   var deferredInstallPrompt = null;
-  var btnInstall = byId('btn-pwa-install-clinician');
-  if (btnInstall) btnInstall.style.display = 'inline-flex';
+  var installBanner = byId('clinician-install-banner');
+  var btnInstallApp = byId('btn-install-app');
+  var btnDismissInstall = byId('btn-dismiss-install');
+  var btnInstallLegacy = byId('btn-pwa-install-clinician');
 
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferredInstallPrompt = e;
-    if (btnInstall) btnInstall.style.display = 'inline-flex';
+    if (installBanner) installBanner.style.display = 'block';
+    if (btnInstallLegacy) btnInstallLegacy.style.display = 'inline-flex';
   });
 
-  if (btnInstall) {
-    btnInstall.addEventListener('click', async function () {
-      if (deferredInstallPrompt) {
-        deferredInstallPrompt.prompt();
-        var choice = await deferredInstallPrompt.userChoice;
-        if (choice && choice.outcome === 'accepted') {
-          showToast('HackMatrix App installed to your device!', 'success');
-        }
-        deferredInstallPrompt = null;
-      } else {
-        var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-          alert('To install HackMatrix on iPhone:\n1. Tap the Share icon (square with arrow up) at the bottom.\n2. Scroll down and tap "Add to Home Screen".\n3. Tap "Add" in top-right.');
-        } else {
-          alert('To install HackMatrix on Android/Chrome:\n1. Tap the browser menu (⋮) in the top-right.\n2. Tap "Install app" or "Add to Home Screen".\n3. Confirm to install.');
-        }
+  async function triggerInstallApp() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      var choice = await deferredInstallPrompt.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        showToast('HackMatrix Doctor App installed successfully!', 'success');
       }
+      deferredInstallPrompt = null;
+      if (installBanner) installBanner.style.display = 'none';
+    } else {
+      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        alert('To install HackMatrix Doctor App on iPhone/iPad:\n1. Tap the Share icon (square with arrow pointing up) in Safari.\n2. Scroll down and tap "Add to Home Screen".\n3. Tap "Add" in the top-right corner.');
+      } else {
+        alert('To install HackMatrix Doctor App on Android/Chrome:\n1. Tap the browser menu (⋮) in the top-right.\n2. Tap "Install app" or "Add to Home Screen".\n3. Tap "Install" to place it on your home screen.');
+      }
+    }
+  }
+
+  if (btnInstallApp) btnInstallApp.addEventListener('click', triggerInstallApp);
+  if (btnInstallLegacy) btnInstallLegacy.addEventListener('click', triggerInstallApp);
+  if (btnDismissInstall) {
+    btnDismissInstall.addEventListener('click', function () {
+      if (installBanner) installBanner.style.display = 'none';
     });
   }
 
@@ -307,15 +321,44 @@
   byId('btn-quick-scan-qr').addEventListener('click', openQrScannerModal);
   byId('btn-quick-emergency').addEventListener('click', openEmergencyModal);
 
-  // Nav buttons
+  // Desktop Navigation Tab buttons
   document.querySelectorAll('.clinician-nav-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('.clinician-nav-btn').forEach(function (b) { b.classList.remove('active'); });
       this.classList.add('active');
       state.currentView = this.dataset.view;
+
+      // Sync Mobile Bottom Navigation
+      document.querySelectorAll('.mobile-nav-btn[data-view]').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.view === state.currentView);
+      });
+
       renderCurrentView();
     });
   });
+
+  // Mobile Bottom Navigation Bar wiring
+  document.querySelectorAll('.mobile-nav-btn[data-view]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetView = this.dataset.view;
+      document.querySelectorAll('.mobile-nav-btn[data-view]').forEach(function (b) { b.classList.remove('active'); });
+      this.classList.add('active');
+
+      // Sync Desktop nav
+      document.querySelectorAll('.clinician-nav-btn').forEach(function (b) {
+        b.classList.toggle('active', b.dataset.view === targetView);
+      });
+
+      state.currentView = targetView;
+      renderCurrentView();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  var mobileScanQrBtn = byId('btn-mobile-scan-qr');
+  if (mobileScanQrBtn) {
+    mobileScanQrBtn.addEventListener('click', openQrScannerModal);
+  }
 
   async function loadInitialData() {
     try {
