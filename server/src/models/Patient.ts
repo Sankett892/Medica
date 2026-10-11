@@ -12,6 +12,15 @@ export interface IPatient extends Document {
   abha?: string;
   allergies: string[];
   facility?: string;
+  location?: {
+    region?: string; // Pune district taluka
+    city: string;
+    state: string;
+    country: string;
+    locality: string;
+    address?: string;
+    coordinates?: { lat: number; lng: number };
+  };
   emergencyContact?: {
     name: string;
     relationship: string;
@@ -35,6 +44,18 @@ const PatientSchema = new Schema<IPatient>(
     abha: { type: String, trim: true },
     allergies: [{ type: String, trim: true }],
     facility: { type: String, trim: true },
+    location: {
+      city: { type: String, trim: true, default: 'Pune' },
+      state: { type: String, trim: true, default: 'Maharashtra' },
+      country: { type: String, trim: true, default: 'India' },
+      region: { type: String, trim: true, index: true },
+      locality: { type: String, trim: true, index: true },
+      address: { type: String, trim: true },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number }
+      }
+    },
     emergencyContact: {
       name: { type: String, trim: true },
       relationship: { type: String, trim: true },

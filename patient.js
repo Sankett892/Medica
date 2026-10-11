@@ -29,7 +29,8 @@
     currentTab: 'home',
     recordFilter: 'all',
     qrData: null,
-    qrInterval: null
+    qrInterval: null,
+    liveConsentPoll: null
   };
 
   // Toast notification helper
@@ -134,14 +135,25 @@
         showApp();
         return;
       } catch (err) {
-        console.warn('Session expired or invalid, redirecting to login', err);
-        api.clearSession();
+        if (err && (err.status === 401 || err.code === 'UNAUTHENTICATED')) {
+          console.warn('Patient session expired or invalid, redirecting to login', err);
+          api.clearSession();
+          showAuth();
+          return;
+        }
+        console.warn('Network or server lag during patient load, keeping session active:', err);
+        showApp();
+        return;
       }
     }
     showAuth();
   }
 
   function showAuth() {
+    if (state.liveConsentPoll) {
+      clearInterval(state.liveConsentPoll);
+      state.liveConsentPoll = null;
+    }
     authView.style.display = 'block';
     appView.style.display = 'none';
   }
@@ -151,6 +163,30 @@
     appView.style.display = 'block';
     renderTabbar();
     renderCurrentTab();
+
+    // Start background poll every 4 seconds to sync incoming doctor consent requests live
+    if (state.liveConsentPoll) clearInterval(state.liveConsentPoll);
+    state.liveConsentPoll = setInterval(async function () {
+      if (!api.getToken()) return;
+      try {
+        var res = await api.get('/patients/me/grants');
+        if (res && res.data) {
+          var prevPending = (state.grants || []).filter(function (g) { return g.status === 'pending'; }).length;
+          var newPending = res.data.filter(function (g) { return g.status === 'pending'; }).length;
+          state.grants = res.data;
+
+          if (newPending > prevPending) {
+            showToast('New Doctor Access Request received! Check Consent tab.', 'info');
+          }
+
+          if (state.currentTab === 'consent') {
+            renderConsentTab();
+          }
+        }
+      } catch (e) {
+        // silent polling catch
+      }
+    }, 4000);
   }
 
   // Tab Switcher
@@ -207,9 +243,11 @@
     }
   }
 
-  quickLoginBtn.addEventListener('click', function () {
-    performPatientQuickLogin('patient_ananya', quickLoginBtn, 'Sign In as Ananya Sharma (HMX-P-20481)');
-  });
+  if (quickLoginBtn) {
+    quickLoginBtn.addEventListener('click', function () {
+      performPatientQuickLogin('patient_ananya', quickLoginBtn, 'Sign In as Ananya Sharma (HMX-P-20481)');
+    });
+  }
 
   var meeraBtn = byId('btn-quick-patient-meera');
   if (meeraBtn) {
@@ -228,18 +266,22 @@
   // Manual Form Login
   loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
+    var submitBtn = loginForm.querySelector('button[type="submit"]');
     try {
       errorBanner.style.display = 'none';
-      var email = document.getElementById('patient-email').value;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Verifying credentials...'; }
+      var email = document.getElementById('patient-email').value.trim();
       var password = document.getElementById('patient-password').value;
       var res = await api.login(email, password, 'PATIENT');
       state.user = res.user;
       await loadAllData();
       showApp();
-      showToast('Signed in successfully', 'success');
+      showToast('Signed in successfully as ' + (res.user.name || 'Patient'), 'success');
     } catch (err) {
       errorBanner.textContent = (err && err.message) || 'Login failed. Please check credentials.';
       errorBanner.style.display = 'block';
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In as Patient / User'; }
     }
   });
 
@@ -337,12 +379,13 @@
 
   // --- DATA LOADING ---
   async function loadAllData() {
-    var [summaryRes, recordsRes, vitalsRes, grantsRes, activityRes] = await Promise.all([
+    var [summaryRes, recordsRes, vitalsRes, grantsRes, activityRes, surveysRes] = await Promise.all([
       api.get('/patients/me/summary'),
       api.get('/patients/me/records'),
       api.get('/patients/me/vitals'),
       api.get('/patients/me/grants'),
-      api.get('/patients/me/activity')
+      api.get('/patients/me/activity'),
+      api.get('/followups/patient/me').catch(function() { return { data: [] }; })
     ]);
 
     state.profile = summaryRes.data.patient;
@@ -350,6 +393,7 @@
     state.records = recordsRes.data.records || [];
     state.grants = grantsRes.data || [];
     state.activity = activityRes.data.activity || [];
+    state.surveys = (surveysRes && surveysRes.data) || [];
   }
 
   // --- NAVIGATION TABBAR ---
@@ -357,6 +401,7 @@
     var tabs = [
       { id: 'home', label: 'Home', icon: 'home' },
       { id: 'records', label: 'Records', icon: 'records' },
+      { id: 'followup', label: 'Follow-Up', icon: 'activity' },
       { id: 'consent', label: 'Consent', icon: 'shieldCheck' },
       { id: 'qr', label: 'QR Pass', icon: 'qr' },
       { id: 'profile', label: 'Profile', icon: 'user' }
@@ -384,6 +429,7 @@
     switch (state.currentTab) {
       case 'home': renderHomeTab(); break;
       case 'records': renderRecordsTab(); break;
+      case 'followup': renderFollowUpTab(); break;
       case 'consent': renderConsentTab(); break;
       case 'qr': renderQrTab(); break;
       case 'profile': renderProfileTab(); break;
@@ -394,6 +440,7 @@
   function renderHomeTab() {
     var p = state.profile || {};
     var activeGrants = state.grants.filter(function (g) { return g.status === 'active'; });
+    var dueSurvey = (state.surveys || []).find(function (s) { return s.status === 'due'; });
 
     var html = `
       <div class="od-stack" style="--od-gap: 16px; padding: 16px;">
@@ -401,11 +448,11 @@
         <div class="od-row" style="justify-content: space-between;">
           <div class="od-row" style="gap: 12px;">
             <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px;">
-              ${(p.name || 'AS').split(' ').map(n=>n[0]).join('')}
+              ${(p.name || (state.user && state.user.name) || 'User').split(' ').map(function(n){ return n[0]; }).join('').toUpperCase()}
             </div>
             <div>
-              <div style="font-size: 17px; font-weight: 700; color: var(--text);">${esc(p.name || 'Ananya Sharma')}</div>
-              <div style="font-size: 12px; color: var(--text-2); font-family: monospace;">ABHA: ${esc(p.abha || '••••-4821')}</div>
+              <div style="font-size: 17px; font-weight: 700; color: var(--text);">${esc(p.name || (state.user && state.user.name) || 'Verified Patient')}</div>
+              <div style="font-size: 12px; color: var(--text-2); font-family: monospace;">ABHA: ${esc(p.abha || (p.id ? 'ABHA-' + p.id : '••••-XXXX'))}</div>
             </div>
           </div>
           <button id="btn-patient-logout" class="hm-btn hm-btn--ghost" title="Sign Out" style="padding: 8px;">
@@ -413,13 +460,31 @@
           </button>
         </div>
 
+        <!-- Follow-Up Survey Active Reminder Banner -->
+        ${dueSurvey ? `
+          <div style="background: linear-gradient(135deg, #1D4ED8, #2563EB); border-radius: 16px; padding: 18px; color: #fff; box-shadow: 0 4px 16px rgba(37,99,235,0.25);">
+            <div class="od-row" style="justify-content: space-between;">
+              <div>
+                <span class="live-badge" style="background: rgba(255,255,255,0.2); color: #fff; font-size: 11px;">● Action Required</span>
+                <div style="font-size: 16px; font-weight: 700; margin-top: 4px;">Health Follow-Up Survey Due</div>
+              </div>
+              <button id="btn-home-open-survey" class="hm-btn hm-btn--primary" style="background: #fff; color: #1D4ED8; font-weight: 700; font-size: 12px; padding: 8px 14px; cursor: pointer;">
+                Answer Now
+              </button>
+            </div>
+            <p style="font-size: 12px; opacity: 0.9; margin: 8px 0 0; line-height: 1.4;">
+              How are you feeling since your consultation for <strong>${esc(dueSurvey.diseaseCategory || 'monitored condition')}</strong>? Your response updates your clinician.
+            </p>
+          </div>
+        ` : ''}
+
         <!-- Emergency Banner -->
         <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start;">
           <div style="color: #DC2626; margin-top: 2px;">${icon('alert', 20)}</div>
           <div style="flex: 1;">
             <div style="font-size: 13px; font-weight: 700; color: #991B1B;">Critical Medical Alert</div>
             <div style="font-size: 12px; color: #B91C1C; margin-top: 2px;">
-              Allergies: <strong>${esc((p.allergies || ['Penicillin']).join(', '))}</strong> • Blood Type: <strong>${esc(p.bloodGroup || 'O+')}</strong>
+              Allergies: <strong>${esc((p.allergies && p.allergies.length ? p.allergies : ['None recorded']).join(', '))}</strong> • Blood Type: <strong>${esc(p.bloodGroup || '—')}</strong>
             </div>
           </div>
         </div>
@@ -439,6 +504,7 @@
             Present to authorized doctor or triage nurse for instant, consent-scoped clinical access.
           </p>
         </div>
+
 
         <!-- Vitals Panel -->
         <div class="od-stack" style="--od-gap: 8px;">
@@ -515,8 +581,17 @@
       renderTabbar();
       renderCurrentTab();
     });
+    var openSurveyBtn = byId('btn-home-open-survey');
+    if (openSurveyBtn) {
+      openSurveyBtn.addEventListener('click', function () {
+        state.currentTab = 'followup';
+        renderTabbar();
+        renderCurrentTab();
+      });
+    }
     byId('btn-add-vital').addEventListener('click', openAddRecordModal);
   }
+
 
   // 2. RECORDS TAB
   function renderRecordsTab() {
@@ -602,10 +677,208 @@
     byId('btn-add-record').addEventListener('click', openAddRecordModal);
   }
 
-  // 3. CONSENT & GRANTS TAB
+  // ==========================================
+  // HEALTH FOLLOW-UP SURVEY TAB
+  // ==========================================
+  function renderFollowUpTab() {
+    var surveys = state.surveys || [];
+    var dueSurveys = surveys.filter(function(s) { return s.status === 'due'; });
+    var scheduledSurveys = surveys.filter(function(s) { return s.status === 'scheduled'; });
+    var completedSurveys = surveys.filter(function(s) { return s.status === 'completed'; });
+
+    var html = `
+      <div class="od-stack" style="--od-gap: 16px; padding: 16px;">
+        <div class="od-row" style="justify-content: space-between;">
+          <div>
+            <h2 style="margin: 0; font-size: 19px; font-weight: 700; color: var(--text);">Health Follow-Up</h2>
+            <div style="font-size: 12px; color: var(--text-2); margin-top: 2px;">Automated patient recovery monitoring</div>
+          </div>
+          <button id="btn-refresh-surveys" class="hm-btn hm-btn--ghost" style="padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--brand); cursor: pointer;">
+            ↻ Refresh
+          </button>
+        </div>
+
+        ${dueSurveys.length > 0 ? dueSurveys.map(function(s) {
+          return `
+            <div style="background: var(--surface); border: 2px solid #2563EB; border-radius: 16px; padding: 18px; box-shadow: 0 4px 12px rgba(37,99,235,0.08);">
+              <div class="od-row" style="justify-content: space-between; margin-bottom: 10px;">
+                <span class="live-badge" style="background: #EFF6FF; color: #1D4ED8; font-size: 11px;">Active Follow-Up Due</span>
+                <span style="font-size: 11px; color: var(--text-3); font-weight:600;">Dr. ${esc(s.clinicianName || 'Attending Physician')}</span>
+              </div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px;">
+                Consultation: ${esc(s.diseaseCategory || 'Clinical Consultation')}
+              </div>
+              <div style="font-size: 12px; color: var(--text-2); margin-bottom: 16px;">
+                Scheduled interval: ${s.intervalDays || 7} days post-encounter
+              </div>
+
+              <form class="patient-survey-form" data-survey-id="${s.id}">
+                <div style="font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px;">
+                  How are you feeling since your last consultation?
+                </div>
+
+                <div class="od-stack" style="--od-gap: 8px; margin-bottom: 14px;">
+                  <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; cursor:pointer; background:var(--surface-2);">
+                    <input type="radio" name="recovery_${s.id}" value="Completely recovered" required />
+                    <span><strong>Completely recovered</strong></span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; cursor:pointer; background:var(--surface-2);">
+                    <input type="radio" name="recovery_${s.id}" value="Feeling better, but not fully recovered" />
+                    <span>Feeling better, but not fully recovered</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; cursor:pointer; background:var(--surface-2);">
+                    <input type="radio" name="recovery_${s.id}" value="No significant improvement" />
+                    <span>No significant improvement</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #FCA5A5; border-radius:10px; font-size:13px; cursor:pointer; background:#FEF2F2; color:#B91C1C;">
+                    <input type="radio" name="recovery_${s.id}" value="Symptoms have worsened" />
+                    <span><strong>Symptoms have worsened</strong> (Alerts your clinician)</span>
+                  </label>
+                  <label style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:13px; cursor:pointer; background:var(--surface-2);">
+                    <input type="radio" name="recovery_${s.id}" value="I would prefer to discuss this with my clinician" />
+                    <span>I would prefer to discuss this with my clinician</span>
+                  </label>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                  <label style="display:block; font-size:12px; font-weight:600; color:var(--text); margin-bottom:4px;">Additional comments or new symptoms (Optional):</label>
+                  <textarea class="survey-comments" rows="2" placeholder="Describe any changes in your symptoms..." style="width:100%; padding:8px 10px; border:1px solid var(--border-strong); border-radius:8px; font-size:12px; box-sizing:border-box;"></textarea>
+                </div>
+
+                <button type="submit" class="hm-btn hm-btn--primary btn-submit-survey" style="width:100%; padding:11px; font-size:13px; font-weight:700; background:#2563EB; cursor:pointer;">
+                  Submit Recovery Status to Doctor
+                </button>
+              </form>
+            </div>
+          `;
+        }).join('') : ''}
+
+        ${scheduledSurveys.length > 0 ? `
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px;">Upcoming Follow-Ups (${scheduledSurveys.length})</div>
+            <div class="od-stack" style="--od-gap: 8px;">
+              ${scheduledSurveys.map(function(s) {
+                return `
+                  <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; font-size: 12px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div>
+                      <div style="font-weight:700; color:var(--text);">${esc(s.diseaseCategory || 'Clinical Consultation')}</div>
+                      <div style="color:var(--text-3); font-size:11px; margin-top:2px;">Scheduled for ${new Date(s.scheduledDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                    </div>
+                    <button class="hm-btn hm-btn--ghost btn-simulate-due" data-survey-id="${s.id}" style="font-size:11px; font-weight:600; color:#2563EB; border:1px solid #BFDBFE; padding:4px 8px; cursor:pointer;" title="Test feature: trigger survey now">
+                      ⚡ Test: Trigger Now
+                    </button>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${completedSurveys.length > 0 ? `
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px;">
+            <div style="font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px;">Completed Survey History (${completedSurveys.length})</div>
+            <div class="od-stack" style="--od-gap: 8px;">
+              ${completedSurveys.map(function(s) {
+                var isWorsened = s.recoveryStatus === 'Symptoms have worsened';
+                return `
+                  <div style="background: var(--surface-2); padding: 12px; border-radius: 10px; font-size: 12px;">
+                    <div class="od-row" style="justify-content:space-between;">
+                      <strong style="color:var(--text);">${esc(s.diseaseCategory || 'Consultation')}</strong>
+                      <span class="live-badge" style="background:${isWorsened ? '#FEF2F2' : '#EFFBF3'}; color:${isWorsened ? '#DC2626' : '#15803D'}; font-size:10px;">
+                        ${esc(s.recoveryStatus)}
+                      </span>
+                    </div>
+                    ${s.comments ? `<div style="margin-top:4px; color:var(--text-2); font-style:italic;">"${esc(s.comments)}"</div>` : ''}
+                    <div style="margin-top:4px; font-size:11px; color:var(--text-3); text-align:right;">
+                      Submitted ${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) : 'Recently'}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        ${dueSurveys.length === 0 && scheduledSurveys.length === 0 && completedSurveys.length === 0 ? `
+          <div style="text-align:center; padding:40px; background:var(--surface); border-radius:14px; border:1px solid var(--border); color:var(--text-2);">
+            ${icon('activity', 36)}
+            <div style="font-size:15px; font-weight:700; color:var(--text); margin-top:8px;">No Surveys Pending</div>
+            <div style="font-size:12px; margin-top:4px;">When your clinician enables recovery follow-ups during consultations, your surveys will appear here.</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    appRoot.innerHTML = html;
+
+    // Attach listeners
+    var refreshBtn = byId('btn-refresh-surveys');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function() {
+        var sRes = await api.get('/followups/patient/me');
+        state.surveys = sRes.data || [];
+        renderFollowUpTab();
+      });
+    }
+
+    // Survey submission
+    appRoot.querySelectorAll('.patient-survey-form').forEach(function(f) {
+      f.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        var surveyId = this.dataset.surveyId;
+        var radio = this.querySelector('input[type="radio"]:checked');
+        if (!radio) {
+          showToast('Please select how you are feeling', 'error');
+          return;
+        }
+        var recoveryStatus = radio.value;
+        var comments = this.querySelector('.survey-comments').value.trim();
+        var submitBtn = this.querySelector('.btn-submit-survey');
+
+        try {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting response...';
+          await api.post('/followups/patient/me/' + surveyId + '/submit', {
+            recoveryStatus: recoveryStatus,
+            comments: comments
+          });
+          showToast('Recovery status submitted to clinician!', 'success');
+          var sRes = await api.get('/followups/patient/me');
+          state.surveys = sRes.data || [];
+          renderFollowUpTab();
+        } catch (err) {
+          showToast(err.message || 'Error submitting survey', 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Recovery Status to Doctor';
+        }
+      });
+    });
+
+    // Test simulation button
+    appRoot.querySelectorAll('.btn-simulate-due').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        var surveyId = this.dataset.surveyId;
+        try {
+          this.disabled = true;
+          this.textContent = 'Triggering...';
+          await api.post('/followups/' + surveyId + '/simulate-due');
+          showToast('Survey is now due for testing!', 'success');
+          var sRes = await api.get('/followups/patient/me');
+          state.surveys = sRes.data || [];
+          renderFollowUpTab();
+        } catch (err) {
+          showToast(err.message || 'Error triggering survey', 'error');
+        }
+      });
+    });
+  }
+
+  // 4. CONSENT & GRANTS TAB
   function renderConsentTab() {
+
+    var pendingGrants = state.grants.filter(function (g) { return g.status === 'pending'; });
     var activeGrants = state.grants.filter(function (g) { return g.status === 'active'; });
-    var revokedGrants = state.grants.filter(function (g) { return g.status !== 'active'; });
+    var revokedGrants = state.grants.filter(function (g) { return g.status !== 'active' && g.status !== 'pending'; });
 
     var html = `
       <div class="od-stack" style="--od-gap: 16px; padding: 16px;">
@@ -618,6 +891,50 @@
             ${icon('plus', 14)} Grant Access
           </button>
         </div>
+
+        <!-- Pending Doctor Access Requests -->
+        ${pendingGrants.length > 0 ? `
+          <div class="od-stack" style="--od-gap: 10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size: 13px; font-weight: 700; color: #D97706; text-transform: uppercase; letter-spacing: 0.04em; display:flex; align-items:center; gap:6px;">
+                <span class="live-badge" style="background:#F59E0B; animation:pulse 1.8s infinite;">Action Required</span>
+                Pending Doctor Access Requests (${pendingGrants.length})
+              </div>
+              <button id="btn-refresh-pending-grants" class="hm-btn hm-btn--ghost" style="font-size:11px; padding:4px 8px; border:1px solid var(--border);">🔄 Refresh</button>
+            </div>
+
+            ${pendingGrants.map(function (g) {
+              return `
+                <div style="background: #FFFBEB; border: 2px solid #FCD34D; border-radius: 14px; padding: 16px; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.1);">
+                  <div class="od-row" style="justify-content: space-between; margin-bottom: 6px;">
+                    <div>
+                      <div style="font-size: 16px; font-weight: 700; color: #92400E;">👨‍⚕️ ${esc(g.recipient)}</div>
+                      <div style="font-size: 12px; color: #B45309; font-weight: 500;">${esc(g.role || 'Clinician')} • ${esc(g.org || 'Hospital')}</div>
+                    </div>
+                    <span style="background: #FEF3C7; color: #B45309; border: 1px solid #FDE68A; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px;">Awaiting Your Approval</span>
+                  </div>
+
+                  <div style="background: #ffffff; padding: 10px 12px; border-radius: 10px; margin: 10px 0; border: 1px solid #FEF3C7; font-size: 12px;">
+                    <div><strong>Requested Purpose:</strong> ${esc(g.purpose || 'Clinical consultation & intake')}</div>
+                    <div style="margin-top: 6px;">
+                      <strong>Requested Scope:</strong> 
+                      ${(g.scope || ['Encounters', 'Observations', 'Medications', 'Allergies']).map(s=>`<span style="display:inline-block; background:#EFF6FF; color:#1D4ED8; border-radius:4px; padding:1px 6px; font-size:10px; margin-right:4px; font-weight:600;">${esc(s)}</span>`).join('')}
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button class="btn-approve-grant hm-btn hm-btn--primary" data-grant-id="${g.id || g._id}" style="flex: 2; font-size: 13px; font-weight: 700; padding: 10px; background: #059669; border: none; color: #fff; border-radius: 8px; cursor: pointer;">
+                      ✓ Approve & Grant Access
+                    </button>
+                    <button class="btn-reject-grant hm-btn hm-btn--ghost" data-grant-id="${g.id || g._id}" style="flex: 1; font-size: 12px; font-weight: 600; padding: 10px; border: 1px solid #FCA5A5; color: #DC2626; background: #FFF5F5; border-radius: 8px; cursor: pointer;">
+                      ✕ Deny
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        ` : ''}
 
         <!-- Active Grants -->
         <div class="od-stack" style="--od-gap: 10px;">
@@ -663,6 +980,63 @@
     `;
 
     appRoot.innerHTML = html;
+
+    // Approve pending grant buttons
+    appRoot.querySelectorAll('.btn-approve-grant').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var grantId = this.dataset.grantId;
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Granting Access...';
+          await api.post('/patients/me/grants/' + grantId + '/approve', {});
+          showToast('Access granted! Clinician can now view your records.', 'success');
+          var fresh = await api.get('/patients/me/grants');
+          state.grants = fresh.data || [];
+          renderConsentTab();
+        } catch (err) {
+          showToast(err.message || 'Error approving grant', 'error');
+          btn.disabled = false;
+          btn.textContent = '✓ Approve & Grant Access';
+        }
+      });
+    });
+
+    // Reject pending grant buttons
+    appRoot.querySelectorAll('.btn-reject-grant').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var grantId = this.dataset.grantId;
+        if (!confirm('Decline this doctor access request?')) return;
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Declining...';
+          await api.post('/patients/me/grants/' + grantId + '/reject', {});
+          showToast('Doctor access request declined.', 'info');
+          var fresh = await api.get('/patients/me/grants');
+          state.grants = fresh.data || [];
+          renderConsentTab();
+        } catch (err) {
+          showToast(err.message || 'Error declining grant', 'error');
+          btn.disabled = false;
+          btn.textContent = '✕ Deny';
+        }
+      });
+    });
+
+    // Refresh pending grants button
+    var refPendingBtn = byId('btn-refresh-pending-grants');
+    if (refPendingBtn) {
+      refPendingBtn.addEventListener('click', async function () {
+        try {
+          refPendingBtn.textContent = 'Refreshing...';
+          var fresh = await api.get('/patients/me/grants');
+          state.grants = fresh.data || [];
+          renderConsentTab();
+          showToast('Consent list updated!', 'info');
+        } catch (e) {
+          renderConsentTab();
+        }
+      });
+    }
 
     // Revoke buttons
     appRoot.querySelectorAll('.btn-revoke-grant').forEach(function (btn) {

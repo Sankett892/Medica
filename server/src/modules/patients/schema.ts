@@ -2,6 +2,13 @@ import { z } from 'zod';
 
 export const updatePatientMeSchema = z.object({
   phone: z.string().optional(),
+  location: z.object({
+    city: z.string().optional().default('Pune'),
+    state: z.string().optional().default('Maharashtra'),
+    country: z.string().optional().default('India'),
+    locality: z.string().optional(),
+    address: z.string().optional()
+  }).optional(),
   emergencyContact: z.object({
     name: z.string().min(1),
     relationship: z.string().min(1),

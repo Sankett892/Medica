@@ -1394,11 +1394,321 @@
 
   window.addEventListener('hashchange', render);
 
+  /* ---------------- Unified Gateway Hub Authentication ---------------- */
+  /* ---------------- Unified Gateway Hub Authentication (Combined Login & Registration) ---------------- */
+  function initGatewayAuth() {
+    var modeLoginBtn = byId('auth-mode-login-btn');
+    var modeRegisterBtn = byId('auth-mode-register-btn');
+    var paneLogin = byId('pane-login-section');
+    var paneRegister = byId('pane-register-section');
+    var errorBanner = byId('gateway-auth-error');
+    var gotoRegisterBtn = byId('btn-goto-register');
+    var gotoLoginBtn = byId('btn-goto-login');
+
+    if (!paneLogin && !paneRegister) return;
+
+    function showError(msg) {
+      if (errorBanner) {
+        errorBanner.textContent = msg;
+        errorBanner.style.display = 'block';
+      }
+    }
+
+    function clearError() {
+      if (errorBanner) {
+        errorBanner.textContent = '';
+        errorBanner.style.display = 'none';
+      }
+    }
+
+    // --- Mode Switching ---
+    function switchMode(mode) {
+      clearError();
+      if (mode === 'login') {
+        if (modeLoginBtn) {
+          modeLoginBtn.style.background = '#0F766E';
+          modeLoginBtn.style.color = '#fff';
+          modeLoginBtn.style.fontWeight = '700';
+        }
+        if (modeRegisterBtn) {
+          modeRegisterBtn.style.background = 'transparent';
+          modeRegisterBtn.style.color = 'rgba(255,255,255,0.7)';
+          modeRegisterBtn.style.fontWeight = '600';
+        }
+        if (paneLogin) paneLogin.style.display = 'block';
+        if (paneRegister) paneRegister.style.display = 'none';
+      } else {
+        if (modeRegisterBtn) {
+          modeRegisterBtn.style.background = '#0F766E';
+          modeRegisterBtn.style.color = '#fff';
+          modeRegisterBtn.style.fontWeight = '700';
+        }
+        if (modeLoginBtn) {
+          modeLoginBtn.style.background = 'transparent';
+          modeLoginBtn.style.color = 'rgba(255,255,255,0.7)';
+          modeLoginBtn.style.fontWeight = '600';
+        }
+        if (paneLogin) paneLogin.style.display = 'none';
+        if (paneRegister) paneRegister.style.display = 'block';
+      }
+    }
+
+    if (modeLoginBtn) modeLoginBtn.addEventListener('click', function () { switchMode('login'); });
+    if (modeRegisterBtn) modeRegisterBtn.addEventListener('click', function () { switchMode('register'); });
+    if (gotoRegisterBtn) gotoRegisterBtn.addEventListener('click', function () { switchMode('register'); });
+    if (gotoLoginBtn) gotoLoginBtn.addEventListener('click', function () { switchMode('login'); });
+
+    // --- Password Show / Hide Toggles ---
+    var btnToggleLoginPass = byId('btn-toggle-login-pass');
+    var inputLoginPass = byId('gateway-password');
+    if (btnToggleLoginPass && inputLoginPass) {
+      btnToggleLoginPass.addEventListener('click', function () {
+        var isPass = inputLoginPass.getAttribute('type') === 'password';
+        inputLoginPass.setAttribute('type', isPass ? 'text' : 'password');
+        btnToggleLoginPass.innerHTML = isPass ?
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' :
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+      });
+    }
+
+    var btnToggleRegPass = byId('btn-toggle-reg-pass');
+    var inputRegPass = byId('reg-password');
+    if (btnToggleRegPass && inputRegPass) {
+      btnToggleRegPass.addEventListener('click', function () {
+        var isPass = inputRegPass.getAttribute('type') === 'password';
+        inputRegPass.setAttribute('type', isPass ? 'text' : 'password');
+        btnToggleRegPass.innerHTML = isPass ?
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' :
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+      });
+    }
+
+    // --- Login Role Switching ---
+    var selectedLoginRole = 'PATIENT';
+    var btnPatient = byId('gateway-role-patient');
+    var btnClinician = byId('gateway-role-clinician');
+    var btnAdmin = byId('gateway-role-admin');
+    var labelEmail = byId('gateway-label-email');
+    var inputEmail = byId('gateway-email');
+    var btnSubmitLogin = byId('gateway-submit-btn');
+
+    function updateLoginRoleUI(role) {
+      selectedLoginRole = role;
+      [btnPatient, btnClinician, btnAdmin].forEach(function (b) {
+        if (!b) return;
+        b.style.background = 'transparent';
+        b.style.color = 'rgba(255,255,255,0.7)';
+        b.classList.remove('active');
+      });
+
+      if (role === 'PATIENT') {
+        if (btnPatient) {
+          btnPatient.style.background = '#0F766E';
+          btnPatient.style.color = '#fff';
+          btnPatient.classList.add('active');
+        }
+        if (labelEmail) labelEmail.textContent = 'Email Address or Patient ID / ABHA';
+        if (inputEmail) inputEmail.placeholder = 'e.g. ananya.sharma@hackmatrix.demo or HMX-P-20481';
+        if (btnSubmitLogin) {
+          btnSubmitLogin.style.background = '#0F766E';
+          btnSubmitLogin.textContent = 'Sign In as Patient / User';
+        }
+      } else if (role === 'CLINICIAN') {
+        if (btnClinician) {
+          btnClinician.style.background = '#2563EB';
+          btnClinician.style.color = '#fff';
+          btnClinician.classList.add('active');
+        }
+        if (labelEmail) labelEmail.textContent = 'Hospital Email or Practitioner ID';
+        if (inputEmail) inputEmail.placeholder = 'e.g. rohit.verma@hackmatrix.demo or HMX-C-7781';
+        if (btnSubmitLogin) {
+          btnSubmitLogin.style.background = '#2563EB';
+          btnSubmitLogin.textContent = 'Sign In as Clinician';
+        }
+      } else if (role === 'ADMIN') {
+        if (btnAdmin) {
+          btnAdmin.style.background = '#D97706';
+          btnAdmin.style.color = '#fff';
+          btnAdmin.classList.add('active');
+        }
+        if (labelEmail) labelEmail.textContent = 'Administrator Username or Official Email';
+        if (inputEmail) inputEmail.placeholder = 'e.g. admin.rao@hackmatrix.demo or admin';
+        if (btnSubmitLogin) {
+          btnSubmitLogin.style.background = '#D97706';
+          btnSubmitLogin.textContent = 'Sign In as Administrator';
+        }
+      }
+      clearError();
+    }
+
+    if (btnPatient) btnPatient.addEventListener('click', function () { updateLoginRoleUI('PATIENT'); });
+    if (btnClinician) btnClinician.addEventListener('click', function () { updateLoginRoleUI('CLINICIAN'); });
+    if (btnAdmin) btnAdmin.addEventListener('click', function () { updateLoginRoleUI('ADMIN'); });
+
+    // --- Login Form Submit ---
+    var loginForm = byId('gateway-login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        try {
+          clearError();
+          btnSubmitLogin.disabled = true;
+          btnSubmitLogin.textContent = 'Authenticating Credentials...';
+
+          var emailVal = inputEmail.value.trim();
+          var passVal = inputLoginPass.value;
+
+          var api = window.HmxApi;
+          if (!api) throw new Error('API client not initialized');
+
+          await api.login(emailVal, passVal, selectedLoginRole);
+
+          if (selectedLoginRole === 'PATIENT') {
+            window.location.href = 'patient.html';
+          } else if (selectedLoginRole === 'CLINICIAN') {
+            window.location.href = 'clinician.html';
+          } else if (selectedLoginRole === 'ADMIN') {
+            window.location.href = 'admin.html';
+          }
+        } catch (err) {
+          showError((err && err.message) || 'Login failed. Please verify credentials.');
+        } finally {
+          btnSubmitLogin.disabled = false;
+          updateLoginRoleUI(selectedLoginRole);
+        }
+      });
+    }
+
+    // --- Registration Role Switching ---
+    var selectedRegRole = 'PATIENT';
+    var regRolePatient = byId('reg-role-patient');
+    var regRoleClinician = byId('reg-role-clinician');
+    var regPatientSpecific = byId('reg-patient-specific');
+    var regClinicianSpecific = byId('reg-clinician-specific');
+    var btnSubmitReg = byId('gateway-reg-submit-btn');
+
+    function updateRegRoleUI(role) {
+      selectedRegRole = role;
+      if (role === 'PATIENT') {
+        if (regRolePatient) {
+          regRolePatient.style.background = '#0F766E';
+          regRolePatient.style.color = '#fff';
+          regRolePatient.classList.add('active');
+        }
+        if (regRoleClinician) {
+          regRoleClinician.style.background = 'transparent';
+          regRoleClinician.style.color = 'rgba(255,255,255,0.7)';
+          regRoleClinician.classList.remove('active');
+        }
+        if (regPatientSpecific) regPatientSpecific.style.display = 'block';
+        if (regClinicianSpecific) regClinicianSpecific.style.display = 'none';
+        if (btnSubmitReg) {
+          btnSubmitReg.style.background = '#0F766E';
+          btnSubmitReg.textContent = 'Register & Access Patient Portal';
+        }
+      } else {
+        if (regRoleClinician) {
+          regRoleClinician.style.background = '#2563EB';
+          regRoleClinician.style.color = '#fff';
+          regRoleClinician.classList.add('active');
+        }
+        if (regRolePatient) {
+          regRolePatient.style.background = 'transparent';
+          regRolePatient.style.color = 'rgba(255,255,255,0.7)';
+          regRolePatient.classList.remove('active');
+        }
+        if (regPatientSpecific) regPatientSpecific.style.display = 'none';
+        if (regClinicianSpecific) regClinicianSpecific.style.display = 'block';
+        if (btnSubmitReg) {
+          btnSubmitReg.style.background = '#2563EB';
+          btnSubmitReg.textContent = 'Register & Access Clinician Portal';
+        }
+      }
+      clearError();
+    }
+
+    if (regRolePatient) regRolePatient.addEventListener('click', function () { updateRegRoleUI('PATIENT'); });
+    if (regRoleClinician) regRoleClinician.addEventListener('click', function () { updateRegRoleUI('CLINICIAN'); });
+
+    // --- Registration Form Submit ---
+    var regForm = byId('gateway-register-form');
+    if (regForm) {
+      regForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        try {
+          clearError();
+
+          var name = byId('reg-name').value.trim();
+          var email = byId('reg-email').value.trim();
+          var pass = byId('reg-password').value;
+          var passConfirm = byId('reg-password-confirm').value;
+
+          if (!name || !email || !pass) {
+            showError('Please fill in all required fields.');
+            return;
+          }
+
+          if (pass.length < 6) {
+            showError('Password must be at least 6 characters long.');
+            return;
+          }
+
+          if (pass !== passConfirm) {
+            showError('Passwords do not match. Please re-enter.');
+            return;
+          }
+
+          btnSubmitReg.disabled = true;
+          btnSubmitReg.textContent = 'Registering Account in MongoDB Atlas...';
+
+          var payload = {
+            name: name,
+            email: email,
+            password: pass,
+            role: selectedRegRole
+          };
+
+          if (selectedRegRole === 'PATIENT') {
+            payload.age = parseInt(byId('reg-age').value, 10) || 30;
+            payload.sex = byId('reg-sex').value;
+            payload.bloodType = byId('reg-blood').value;
+            payload.locality = byId('reg-locality').value || 'Kothrud';
+            payload.phone = byId('reg-phone').value.trim() || '+91 98000 00000';
+          } else {
+            payload.specialty = byId('reg-doc-specialty').value;
+            payload.department = byId('reg-doc-specialty').value;
+            payload.facility = byId('reg-doc-facility').value.trim() || 'Sunrise Multispecialty Hospital';
+            payload.locality = byId('reg-doc-locality').value || 'Shivajinagar';
+            payload.license = byId('reg-doc-license').value.trim() || 'MMC-2024-REG';
+          }
+
+          var api = window.HmxApi;
+          if (!api) throw new Error('API client not initialized');
+
+          await api.register(payload);
+
+          // Redirect to appropriate portal
+          if (selectedRegRole === 'PATIENT') {
+            window.location.href = 'patient.html';
+          } else {
+            window.location.href = 'clinician.html';
+          }
+        } catch (err) {
+          showError((err && err.message) || 'Registration failed. Email may already be registered.');
+          btnSubmitReg.disabled = false;
+          updateRegRoleUI(selectedRegRole);
+        }
+      });
+    }
+  }
+
+
   /* ---------------- boot ---------------- */
   function boot() {
     applyTheme(savedTheme());
     if (!location.hash) location.hash = '#/';
     render();
+    initGatewayAuth();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();

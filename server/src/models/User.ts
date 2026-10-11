@@ -22,7 +22,7 @@ const UserSchema = new Schema<IUser>(
     clerkUserId: { type: String, required: true, unique: true, index: true },
     role: { type: String, required: true, enum: ['PATIENT', 'CLINICIAN', 'ADMIN'], index: true },
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, trim: true, lowercase: true, index: true },
+    email: { type: String, required: true, trim: true, lowercase: true, unique: true, index: true },
     passwordHash: { type: String },
     passwordSalt: { type: String },
     orgId: { type: Schema.Types.ObjectId, ref: 'Organization', index: true },

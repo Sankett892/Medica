@@ -50,12 +50,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   // Check for DEV_PREVIEW bearer token (e.g., Bearer dev:u1 or dev-token:<role>)
   if (config.DEV_PREVIEW && !config.isProduction && token.startsWith('dev:')) {
     const identifier = token.slice(4);
-    const user = await User.findOne({
-      $or: [
-        { clerkUserId: identifier },
-        { email: identifier }
-      ]
-    });
+    let user: IUser | null = null;
+    if (identifier.match(/^[0-9a-fA-F]{24}$/)) {
+      user = await User.findById(identifier);
+    }
+    if (!user) {
+      user = await User.findOne({
+        $or: [
+          { clerkUserId: identifier },
+          { email: identifier },
+          { email: identifier.toLowerCase() }
+        ]
+      });
+    }
 
     if (user && user.status === 'Active') {
       req.user = user;

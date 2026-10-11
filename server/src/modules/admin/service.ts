@@ -5,7 +5,11 @@ import { AuditEvent } from '../../models/AuditEvent.js';
 import { Patient } from '../../models/Patient.js';
 import { ConsentGrant } from '../../models/ConsentGrant.js';
 import { ClinicalResource } from '../../models/ClinicalResource.js';
+import { Encounter } from '../../models/Encounter.js';
+import { FollowUpSurvey } from '../../models/FollowUpSurvey.js';
 import { SystemStatus } from '../../models/SystemStatus.js';
+import { Facility } from '../../models/Facility.js';
+import { PUNE_TALUKAS, PUNE_TALUKA_GEO, resolvePuneTaluka, PuneTaluka } from '../../constants/regions.js';
 import { config } from '../../config/env.js';
 import { AppError } from '../../middleware/errorHandler.js';
 import { SurveillanceQuery, FacilitiesQuery, AuditQuery } from './schema.js';
@@ -199,24 +203,52 @@ export class AdminService {
   }
 
   async getFacilities(query: FacilitiesQuery) {
-    let list = this.defaultFacilities;
+    let filter: any = {};
+    if (query.region && query.region !== 'all') {
+      filter.region = query.region;
+    }
     if (query.q && query.q.trim()) {
-      const q = query.q.trim().toLowerCase();
-      list = list.filter(f => f.name.toLowerCase().includes(q) || f.region.toLowerCase().includes(q));
+      const q = query.q.trim();
+      filter.$or = [
+        { name: { $regex: q, $options: 'i' } },
+        { region: { $regex: q, $options: 'i' } },
+        { locality: { $regex: q, $options: 'i' } }
+      ];
     }
 
     const page = query.page || 1;
-    const pageSize = query.pageSize || 5;
-    const start = (page - 1) * pageSize;
-    const paginated = list.slice(start, start + pageSize);
+    const pageSize = query.pageSize || 20;
+
+    const [dbFacilities, total] = await Promise.all([
+      Facility.find(filter).sort({ region: 1, name: 1 }).skip((page - 1) * pageSize).limit(pageSize),
+      Facility.countDocuments(filter)
+    ]);
+
+    const formatted = dbFacilities.map(f => ({
+      id: f.facilityId,
+      name: f.name,
+      type: f.type,
+      region: f.region,
+      locality: f.locality || f.region,
+      city: f.city,
+      address: f.address,
+      coordinates: f.coordinates,
+      bedCapacity: f.bedCapacity || 50,
+      verificationStatus: f.verificationStatus,
+      period: 'Wk 41',
+      volume: (f.bedCapacity || 50) * 12,
+      freshness: '1 h',
+      completeness: 98,
+      quality: 'Good'
+    }));
 
     return {
-      facilities: paginated,
+      facilities: formatted,
       meta: {
         page,
         pageSize,
-        total: list.length,
-        totalPages: Math.max(1, Math.ceil(list.length / pageSize))
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize))
       }
     };
   }
@@ -392,6 +424,402 @@ export class AdminService {
       }
     };
   }
+
+  async getPuneIntelligenceMap(filter?: {
+    diseaseCategory?: string;
+    locality?: string;
+    region?: string;
+    taluka?: string;
+    startDate?: string;
+    endDate?: string;
+    k?: number;
+  }) {
+    const k = filter?.k || this.kThreshold;
+    const matchStage: any = {};
+
+    if (filter?.diseaseCategory && filter.diseaseCategory !== 'all') {
+      matchStage.diseaseCategory = { $regex: new RegExp(filter.diseaseCategory, 'i') };
+    }
+    const targetRegion = filter?.region || filter?.taluka;
+    if (targetRegion && targetRegion !== 'all') {
+      matchStage.$or = [
+        { region: { $regex: new RegExp(`^${targetRegion}$`, 'i') } },
+        { locality: { $regex: new RegExp(`^${targetRegion}$`, 'i') } }
+      ];
+    }
+    if (filter?.locality && filter.locality !== 'all' && (!targetRegion || targetRegion === 'all')) {
+      matchStage.locality = { $regex: new RegExp(`^${filter.locality}$`, 'i') };
+    }
+    if (filter?.startDate || filter?.endDate) {
+      matchStage.occurredAt = {};
+      if (filter.startDate) matchStage.occurredAt.$gte = new Date(filter.startDate);
+      if (filter.endDate) matchStage.occurredAt.$lte = new Date(filter.endDate);
+    }
+
+    // 1. Fetch all verified facilities grouped by Pune Taluka
+    const allFacilities = await Facility.find({}).sort({ name: 1 });
+    const facilitiesByRegion = new Map<string, any[]>();
+    for (const f of allFacilities) {
+      const reg = f.region || 'Pune';
+      if (!facilitiesByRegion.has(reg)) {
+        facilitiesByRegion.set(reg, []);
+      }
+      facilitiesByRegion.get(reg)!.push({
+        id: f.facilityId,
+        name: f.name,
+        type: f.type,
+        region: f.region,
+        locality: f.locality,
+        address: f.address,
+        coordinates: f.coordinates,
+        bedCapacity: f.bedCapacity,
+        verificationStatus: f.verificationStatus
+      });
+    }
+
+    // Initialize map for all 14 official Pune talukas
+    const rawTalukaStats = new Map<
+      string,
+      {
+        activeCases: number;
+        recoveredCases: number;
+        totalCases: number;
+        totalEncounters: number;
+        diseaseActiveMap: Map<string, number>;
+        diseaseRecoveredMap: Map<string, number>;
+        diseaseTotalMap: Map<string, number>;
+      }
+    >();
+    for (const t of PUNE_TALUKAS) {
+      rawTalukaStats.set(t, {
+        activeCases: 0,
+        recoveredCases: 0,
+        totalCases: 0,
+        totalEncounters: 0,
+        diseaseActiveMap: new Map(),
+        diseaseRecoveredMap: new Map(),
+        diseaseTotalMap: new Map()
+      });
+    }
+
+    // 2. Fetch all completed surveys to identify patients/encounters marked as completely recovered
+    const completedSurveys = await FollowUpSurvey.find({ status: 'completed' })
+      .select('encounterId patientId recoveryStatus diseaseCategory');
+
+    const recoveredEncounterIdSet = new Set<string>();
+    const recoveredPatientDiseaseSet = new Set<string>();
+
+    for (const s of completedSurveys) {
+      if (s.recoveryStatus === 'Completely recovered') {
+        if (s.encounterId) recoveredEncounterIdSet.add(s.encounterId.toString());
+        if (s.patientId && s.diseaseCategory) {
+          recoveredPatientDiseaseSet.add(`${s.patientId.toString()}::${s.diseaseCategory}`);
+        }
+      }
+    }
+
+    // 3. Fetch encounters matching criteria to compute active affected vs recovered per taluka
+    const encounters = await Encounter.find(matchStage)
+      .select('_id patientId diseaseCategory region locality occurredAt isRecovered recoveryStatus fields');
+
+    // Group encounters by: taluka -> diseaseCategory -> patientId
+    const patientEncounterMap = new Map<
+      string, // taluka
+      Map<
+        string, // diseaseCategory
+        Map<string, { encountersCount: number; isRecovered: boolean }> // patientId -> info
+      >
+    >();
+
+    for (const enc of encounters) {
+      const canonical = resolvePuneTaluka(enc.locality || enc.region, enc.region);
+      const disease = enc.diseaseCategory || 'General Consultation';
+      const patId = enc.patientId ? enc.patientId.toString() : enc._id.toString();
+
+      // Check if this encounter / patient is completely recovered
+      const isRecovered =
+        enc.isRecovered === true ||
+        enc.recoveryStatus === 'Completely recovered' ||
+        recoveredEncounterIdSet.has(enc._id.toString()) ||
+        recoveredPatientDiseaseSet.has(`${patId}::${disease}`) ||
+        (Array.isArray(enc.fields) &&
+          enc.fields.some(f => f.k === 'Patient Recovery Feedback' && f.v === 'Completely recovered'));
+
+      if (!patientEncounterMap.has(canonical)) {
+        patientEncounterMap.set(canonical, new Map());
+      }
+      const talukaDiseaseMap = patientEncounterMap.get(canonical)!;
+      if (!talukaDiseaseMap.has(disease)) {
+        talukaDiseaseMap.set(disease, new Map());
+      }
+      const patMap = talukaDiseaseMap.get(disease)!;
+
+      const existing = patMap.get(patId);
+      if (existing) {
+        existing.encountersCount += 1;
+        // If any recent encounter is marked recovered, keep recovered
+        if (isRecovered) existing.isRecovered = true;
+      } else {
+        patMap.set(patId, { encountersCount: 1, isRecovered });
+      }
+
+      // Update total encounters count for taluka
+      const stat = rawTalukaStats.get(canonical);
+      if (stat) {
+        stat.totalEncounters += 1;
+      }
+    }
+
+    // Now calculate distinct active affected cases vs recovered cases per taluka and disease
+    for (const [talukaName, diseaseMap] of patientEncounterMap.entries()) {
+      const stat = rawTalukaStats.get(talukaName);
+      if (!stat) continue;
+
+      const talukaActivePatients = new Set<string>();
+      const talukaRecoveredPatients = new Set<string>();
+
+      for (const [disease, patMap] of diseaseMap.entries()) {
+        let diseaseActive = 0;
+        let diseaseRecovered = 0;
+
+        for (const [patId, info] of patMap.entries()) {
+          if (info.isRecovered) {
+            diseaseRecovered += 1;
+            talukaRecoveredPatients.add(patId);
+          } else {
+            // Patient is actively affected by this disease!
+            diseaseActive += 1;
+            talukaActivePatients.add(patId);
+          }
+        }
+
+        stat.diseaseActiveMap.set(disease, diseaseActive);
+        stat.diseaseRecoveredMap.set(disease, diseaseRecovered);
+        stat.diseaseTotalMap.set(disease, diseaseActive + diseaseRecovered);
+      }
+
+      // A patient is considered active in the taluka if they have at least one active condition
+      // Once completely recovered, they are subtracted from active cases!
+      stat.activeCases = talukaActivePatients.size;
+      stat.recoveredCases = talukaRecoveredPatients.size;
+      stat.totalCases = stat.activeCases + stat.recoveredCases;
+    }
+
+    // 4. Build talukas array with metrics, suppression, boundaries, and facilities
+    const talukas = PUNE_TALUKAS.map(talukaName => {
+      const geo = PUNE_TALUKA_GEO[talukaName];
+      const stats = rawTalukaStats.get(talukaName) || {
+        activeCases: 0,
+        recoveredCases: 0,
+        totalCases: 0,
+        totalEncounters: 0,
+        diseaseActiveMap: new Map(),
+        diseaseRecoveredMap: new Map(),
+        diseaseTotalMap: new Map()
+      };
+
+      // When a patient is completely recovered, the active affected count gets subtracted (minus 1)!
+      const rawCases = stats.activeCases;
+      const recoveredCases = stats.recoveredCases;
+      const totalCases = stats.totalCases;
+      const totalEncounters = stats.totalEncounters;
+      const isSuppressed = rawCases > 0 && rawCases < k;
+
+      let intensity: 'zero' | 'low' | 'moderate' | 'high' = 'zero';
+      let markerColor = '#10B981'; // green for zero/normal
+
+      if (rawCases > 15) {
+        intensity = 'high';
+        markerColor = '#EF4444'; // red
+      } else if (rawCases >= 6) {
+        intensity = 'moderate';
+        markerColor = '#F59E0B'; // amber
+      } else if (rawCases > 0) {
+        intensity = 'low';
+        markerColor = '#3B82F6'; // blue
+      }
+
+      // Disease breakdown for this specific taluka (displaying active cases minus recovered)
+      const diseaseBreakdown = Array.from(stats.diseaseTotalMap.entries())
+        .map(([category]) => {
+          const activeCount = stats.diseaseActiveMap.get(category) || 0;
+          const recoveredCount = stats.diseaseRecoveredMap.get(category) || 0;
+          const totalCount = activeCount + recoveredCount;
+          const suppressed = activeCount < k && activeCount > 0;
+
+          return {
+            category,
+            rawCases: activeCount, // Current active affected count (decrements when recovered)
+            cases: suppressed ? `< ${k}` : String(activeCount),
+            activeCases: activeCount,
+            recoveredCases: recoveredCount,
+            totalCases: totalCount,
+            suppressed
+          };
+        })
+        .sort((a, b) => b.rawCases - a.rawCases);
+
+      const facilities = facilitiesByRegion.get(talukaName) || [];
+
+      return {
+        name: talukaName,
+        taluka: talukaName,
+        lat: geo.lat,
+        lng: geo.lng,
+        radiusKm: geo.radiusKm,
+        bounds: geo.bounds,
+        description: geo.description,
+        headquarters: geo.headquarters,
+        rawCases, // Number of people currently affected by the disease
+        displayCases: rawCases === 0 ? '0' : (isSuppressed ? `< ${k}` : String(rawCases)),
+        activeCases: rawCases,
+        recoveredCases,
+        totalCases,
+        totalEncounters,
+        suppressed: isSuppressed,
+        intensity,
+        color: markerColor,
+        diseaseBreakdown,
+        facilities
+      };
+    });
+
+    // 5. District-wide Disease Breakdown across Pune
+    const totalActiveCasesAcrossPune = talukas.reduce((acc, t) => acc + t.activeCases, 0);
+    const totalRecoveredCasesAcrossPune = talukas.reduce((acc, t) => acc + t.recoveredCases, 0);
+    const totalDistinctCasesAcrossPune = totalActiveCasesAcrossPune; // Current active affected across Pune
+    const totalCumulativeCasesAcrossPune = talukas.reduce((acc, t) => acc + t.totalCases, 0);
+    const totalEncountersAcrossPune = talukas.reduce((acc, t) => acc + t.totalEncounters, 0);
+    const suppressedRegionsCount = talukas.filter(t => t.suppressed).length;
+
+    // Aggregate all unique disease categories across talukas
+    const allDiseaseCategories = new Set<string>();
+    for (const t of talukas) {
+      for (const d of t.diseaseBreakdown) {
+        allDiseaseCategories.add(d.category);
+      }
+    }
+
+    const diseaseBreakdown = Array.from(allDiseaseCategories).map(cat => {
+      let catActive = 0;
+      let catRecovered = 0;
+      for (const t of talukas) {
+        const item = t.diseaseBreakdown.find(d => d.category === cat);
+        if (item) {
+          catActive += item.activeCases;
+          catRecovered += item.recoveredCases;
+        }
+      }
+      return {
+        category: cat,
+        rawCases: catActive,
+        cases: catActive < k && catActive > 0 ? `< ${k}` : String(catActive),
+        activeCases: catActive,
+        recoveredCases: catRecovered,
+        totalCases: catActive + catRecovered,
+        suppressed: catActive < k && catActive > 0
+      };
+    }).sort((a, b) => b.rawCases - a.rawCases);
+
+    // Extensible distinct disease categories present in MongoDB
+    const allDiseasesList = await Encounter.distinct('diseaseCategory');
+    const allDiseases = (allDiseasesList || []).filter(Boolean);
+
+    return {
+      kThreshold: k,
+      totalDistinctCases: totalActiveCasesAcrossPune, // Active affected people count
+      totalActiveCases: totalActiveCasesAcrossPune,
+      totalRecoveredCases: totalRecoveredCasesAcrossPune,
+      totalCumulativeCases: totalCumulativeCasesAcrossPune,
+      totalEncounters: totalEncountersAcrossPune,
+      suppressedRegionsCount,
+      talukas,
+      diseaseBreakdown,
+      allDiseases,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async getFollowUpAnalytics() {
+    const [scheduled, due, completed, total] = await Promise.all([
+      FollowUpSurvey.countDocuments({ status: 'scheduled' }),
+      FollowUpSurvey.countDocuments({ status: 'due' }),
+      FollowUpSurvey.countDocuments({ status: 'completed' }),
+      FollowUpSurvey.countDocuments()
+    ]);
+
+    const outcomesAgg = await FollowUpSurvey.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: '$recoveryStatus', count: { $sum: 1 } } }
+    ]);
+
+    const breakdownMap: Record<string, number> = {
+      'Completely recovered': 0,
+      'Feeling better, but not fully recovered': 0,
+      'No significant improvement': 0,
+      'Symptoms have worsened': 0,
+      'I would prefer to discuss this with my clinician': 0
+    };
+
+    for (const item of outcomesAgg) {
+      if (item._id && breakdownMap[item._id] !== undefined) {
+        breakdownMap[item._id] = item.count;
+      }
+    }
+
+    const responseRate = (due + completed > 0) ? Math.round((completed / (due + completed)) * 100) : 100;
+    const worsenedCount = breakdownMap['Symptoms have worsened'] || 0;
+
+    const recentSurveys = await FollowUpSurvey.find({ status: 'completed' })
+      .sort({ completedAt: -1 })
+      .limit(10);
+
+    const anonymizedList = recentSurveys.map(s => ({
+      id: s._id.toString(),
+      subjectRef: `Subject-P${s.patientId.toString().slice(-4).toUpperCase()}`,
+      diseaseCategory: s.diseaseCategory || 'Monitored condition',
+      recoveryStatus: s.recoveryStatus,
+      intervalDays: s.intervalDays,
+      completedAt: s.completedAt ? s.completedAt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently',
+      worsened: s.recoveryStatus === 'Symptoms have worsened'
+    }));
+
+    return {
+      metrics: {
+        scheduled,
+        due,
+        completed,
+        total,
+        responseRate,
+        worsenedCount
+      },
+      recoveryBreakdown: Object.entries(breakdownMap).map(([status, count]) => ({
+        status,
+        count,
+        percentage: completed > 0 ? Math.round((count / completed) * 100) : 0
+      })),
+      recentSurveys: anonymizedList,
+      lastRefreshed: new Date().toISOString()
+    };
+  }
 }
+
+export const PUNE_LOCALITIES_GEO: Record<string, { lat: number; lng: number }> = {
+  'Kothrud': { lat: 18.5074, lng: 73.8077 },
+  'Baner': { lat: 18.5590, lng: 73.7868 },
+  'Aundh': { lat: 18.5580, lng: 73.8075 },
+  'Hinjawadi': { lat: 18.5913, lng: 73.7389 },
+  'Wakad': { lat: 18.5987, lng: 73.7660 },
+  'Hadapsar': { lat: 18.5089, lng: 73.9259 },
+  'Kharadi': { lat: 18.5514, lng: 73.9348 },
+  'Bibwewadi': { lat: 18.4695, lng: 73.8643 },
+  'Kondhwa': { lat: 18.4776, lng: 73.8876 },
+  'Viman Nagar': { lat: 18.5679, lng: 73.9143 },
+  'Shivajinagar': { lat: 18.5314, lng: 73.8446 },
+  'Yerawada': { lat: 18.5529, lng: 73.8796 },
+  'Pimpri': { lat: 18.6279, lng: 73.8009 },
+  'Chinchwad': { lat: 18.6298, lng: 73.7840 }
+};
+
 
 export const adminService = new AdminService();

@@ -85,6 +85,10 @@ export class AuthService {
   }
 
   async register(input: RegisterInput) {
+    if (input.role === 'ADMIN') {
+      throw new AppError(403, 'FORBIDDEN_REGISTRATION', 'Administrator accounts cannot be created via public registration. Contact system administration.');
+    }
+
     const normalizedEmail = input.email.toLowerCase().trim();
     const existing = await User.findOne({ email: normalizedEmail });
     if (existing) {
@@ -98,7 +102,7 @@ export class AuthService {
     let defaultOrg = await Organization.findOne();
     if (!defaultOrg) {
       defaultOrg = await Organization.create({
-        name: input.organization || input.facility || 'Sunrise Multispecialty Hospital',
+        name: input.organization || input.facility || input.hospitalOrClinic || 'Sunrise Multispecialty Hospital',
         type: 'Hospital',
         region: 'North',
         status: 'Active'
@@ -125,7 +129,14 @@ export class AuthService {
         phone: input.phone || '+91 ••••• •1234',
         abha: abhaTag,
         allergies: input.allergies || ['None Reported'],
-        facility: defaultOrg.name
+        facility: defaultOrg.name,
+        location: {
+          city: input.city || 'Pune',
+          state: 'Maharashtra',
+          country: 'India',
+          locality: input.locality || 'Shivajinagar',
+          address: input.address || ''
+        }
       });
       linkedPatientId = patient._id as Types.ObjectId;
 
@@ -154,11 +165,18 @@ export class AuthService {
       const practitioner = await Practitioner.create({
         orgId,
         identifiers: [`HMX-C-${7800 + cCount}`],
-        name: input.name,
+        name: input.name.startsWith('Dr.') ? input.name : `Dr. ${input.name}`,
         specialty: input.specialty || 'General Medicine',
-        dept: input.dept || 'Emergency Medicine',
+        dept: input.dept || 'Consultation',
         licenseNo: input.licenseNo || `MED-${Math.floor(1000 + Math.random()*9000)}-REG`,
-        facilities: [defaultOrg.name]
+        facilities: [input.hospitalOrClinic || input.facility || defaultOrg.name],
+        location: {
+          city: input.city || 'Pune',
+          state: 'Maharashtra',
+          country: 'India',
+          locality: input.locality || 'Shivajinagar',
+          hospitalOrClinic: input.hospitalOrClinic || input.facility || defaultOrg.name
+        }
       });
       linkedPractitionerId = practitioner._id as Types.ObjectId;
     }
@@ -194,25 +212,74 @@ export class AuthService {
 
   async login(input: LoginInput) {
     let user: IUser | null = null;
+    const rawTerm = input.email || input.identifier;
 
-    if (input.email) {
-      user = await User.findOne({ email: input.email.toLowerCase().trim() });
+    if (rawTerm) {
+      const term = rawTerm.trim();
+      const lower = term.toLowerCase();
+
+      // 1. Direct email or clerkUserId match
+      user = await User.findOne({
+        $or: [
+          { email: lower },
+          { email: term },
+          { clerkUserId: term }
+        ]
+      });
+
+      // 2. Patient identifier / ABHA / phone match
+      if (!user) {
+        const patient = await Patient.findOne({
+          $or: [
+            { identifiers: term },
+            { identifiers: term.toUpperCase() },
+            { abha: term },
+            { phone: term }
+          ]
+        });
+        if (patient) {
+          user = await User.findOne({ linkedPatientId: patient._id });
+          if (!user) {
+            user = await User.findOne({ name: new RegExp(patient.name, 'i') });
+          }
+        }
+      }
+
+      // 3. Practitioner identifier / license match
+      if (!user) {
+        const pract = await Practitioner.findOne({
+          $or: [
+            { identifiers: term },
+            { identifiers: term.toUpperCase() },
+            { licenseNo: term }
+          ]
+        });
+        if (pract) {
+          user = await User.findOne({ linkedPractitionerId: pract._id });
+          if (!user) {
+            user = await User.findOne({ name: new RegExp(pract.name.replace(/Dr\.\s*/i, ''), 'i') });
+          }
+        }
+      }
+
+      // 4. Admin username match
+      if (!user && (lower === 'admin' || lower === 'admin.rao' || lower === 'administrator')) {
+        user = await User.findOne({ role: 'ADMIN' });
+      }
     } else if (input.persona === 'patient' || input.persona === 'patient_ananya') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u4' }, { email: 'ananya.sharma@hackmatrix.demo' }, { role: 'PATIENT' }] });
+      user = await User.findOne({ email: 'ananya.sharma@hackmatrix.demo' });
     } else if (input.persona === 'patient_meera') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u5' }, { email: 'meera.nair@hackmatrix.demo' }] });
+      user = await User.findOne({ email: 'meera.nair@hackmatrix.demo' });
     } else if (input.persona === 'patient_rohan') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u6' }, { email: 'rohan.deshmukh@hackmatrix.demo' }] });
+      user = await User.findOne({ email: 'rohan.deshmukh@hackmatrix.demo' });
     } else if (input.persona === 'clinician' || input.persona === 'clinician_rohit') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u3' }, { email: 'rohit.verma@hackmatrix.demo' }, { role: 'CLINICIAN' }] });
+      user = await User.findOne({ email: 'rohit.verma@hackmatrix.demo' });
     } else if (input.persona === 'clinician_neha') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u2' }, { email: 'neha.kapoor@hackmatrix.demo' }] });
+      user = await User.findOne({ email: 'neha.kapoor@hackmatrix.demo' });
     } else if (input.persona === 'clinician_anand') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u7' }, { email: 'anand.rao@hackmatrix.demo' }] });
+      user = await User.findOne({ email: 'anand.rao@hackmatrix.demo' });
     } else if (input.persona === 'admin') {
-      user = await User.findOne({ $or: [{ clerkUserId: 'u1' }, { email: 'admin.rao@hackmatrix.demo' }, { role: 'ADMIN' }] });
-    } else if (input.role) {
-      user = await User.findOne({ role: input.role as any });
+      user = await User.findOne({ role: 'ADMIN' });
     }
 
     if (!user) {
@@ -223,28 +290,29 @@ export class AuthService {
       throw new AppError(403, 'ACCOUNT_SUSPENDED', 'This account has been suspended');
     }
 
-    // Strict Password Verification
-    if (input.password && user.passwordHash && user.passwordSalt) {
-      const valid = verifyPassword(input.password, user.passwordHash, user.passwordSalt);
-      if (!valid) {
-        throw new AppError(401, 'INVALID_CREDENTIALS', 'Incorrect password entered');
-      }
-    } else if (input.password && !user.passwordHash) {
-      // Lazy migration for pre-seeded users
-      const { hash, salt } = hashPassword(input.password);
-      user.passwordHash = hash;
-      user.passwordSalt = salt;
-      await user.save();
-    }
-
     // Role check if portal requested specific role
     if (input.role && user.role !== input.role) {
-      throw new AppError(403, 'ROLE_MISMATCH', `Account is registered as ${user.role}, not ${input.role}`);
+      const friendlyRole = user.role === 'PATIENT' ? 'Patient / User' : (user.role === 'CLINICIAN' ? 'Clinician' : 'Administrator');
+      throw new AppError(403, 'ROLE_MISMATCH', `Account is registered as ${friendlyRole}. Please switch to the ${friendlyRole} tab to sign in.`);
+    }
+
+    if (!input.password) {
+      throw new AppError(400, 'PASSWORD_REQUIRED', 'Password is required to authenticate');
+    }
+
+    // Strict Password Verification against Database Record
+    if (!user.passwordHash || !user.passwordSalt) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'No cryptographic password hash registered for this account');
+    }
+
+    const valid = verifyPassword(input.password, user.passwordHash, user.passwordSalt);
+    if (!valid) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Incorrect password entered. Please verify credentials.');
     }
 
     const me = await this.getMe(user);
     return {
-      token: `dev:${user.clerkUserId}`,
+      token: `dev:${user.clerkUserId || user.email || user._id.toString()}`,
       user: me
     };
   }

@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { Encounter } from '../../models/Encounter.js';
 import { Observation } from '../../models/Observation.js';
 import { ClinicalResource, ClinicalCategory } from '../../models/ClinicalResource.js';
+import { FollowUpSurvey } from '../../models/FollowUpSurvey.js';
 import { formatAuditDate } from '../../middleware/audit.js';
 
 export interface FormattedRecord {
@@ -15,6 +16,13 @@ export interface FormattedRecord {
   status: string;
   updated: string;
   fields: { k: string; v: string }[];
+  followUpSurvey?: {
+    id: string;
+    status: string;
+    recoveryStatus?: string;
+    comments?: string;
+    submittedAt?: Date;
+  };
 }
 
 export class RecordsService {
@@ -41,7 +49,30 @@ export class RecordsService {
     // 1. Encounters
     if (shouldIncludeCat('encounters')) {
       const encounters = await Encounter.find({ patientId }).sort({ occurredAt: -1 });
+      const completedSurveys = await FollowUpSurvey.find({ patientId, status: 'completed' }).sort({ submittedAt: -1, updatedAt: -1 });
+
       for (const enc of encounters) {
+        const encIdStr = enc._id.toString();
+        const survey = completedSurveys.find(s => s.encounterId && s.encounterId.toString() === encIdStr);
+
+        const encFields = enc.fields && enc.fields.length > 0 ? [...enc.fields] : [
+          { k: 'Encounter type', v: enc.type },
+          { k: 'Disposition', v: enc.disposition || 'Discharged' },
+          { k: 'Follow-up', v: enc.followUp || 'As needed' }
+        ];
+
+        if (survey) {
+          if (survey.recoveryStatus && !encFields.some(f => f.k === 'Patient Recovery Feedback')) {
+            encFields.push({ k: 'Patient Recovery Feedback', v: survey.recoveryStatus });
+          }
+          if (survey.comments && !encFields.some(f => f.k === 'Patient Comments')) {
+            encFields.push({ k: 'Patient Comments', v: survey.comments });
+          }
+          if ((survey.submittedAt || survey.updatedAt) && !encFields.some(f => f.k === 'Feedback Submitted Date')) {
+            encFields.push({ k: 'Feedback Submitted Date', v: formatAuditDate(survey.submittedAt || survey.updatedAt) });
+          }
+        }
+
         records.push({
           id: enc._id.toString(),
           cat: 'encounters',
@@ -52,11 +83,14 @@ export class RecordsService {
           summary: enc.summary,
           status: enc.status,
           updated: formatAuditDate(enc.updatedAt || enc.occurredAt),
-          fields: enc.fields && enc.fields.length > 0 ? enc.fields : [
-            { k: 'Encounter type', v: enc.type },
-            { k: 'Disposition', v: enc.disposition || 'Discharged' },
-            { k: 'Follow-up', v: enc.followUp || 'As needed' }
-          ]
+          fields: encFields,
+          followUpSurvey: survey ? {
+            id: survey._id.toString(),
+            status: survey.status,
+            recoveryStatus: survey.recoveryStatus,
+            comments: survey.comments,
+            submittedAt: survey.submittedAt || survey.updatedAt
+          } : undefined
         });
       }
     }
@@ -132,6 +166,28 @@ export class RecordsService {
     // Try Encounter
     const enc = await Encounter.findOne({ _id: id, patientId });
     if (enc) {
+      const survey = await FollowUpSurvey.findOne({
+        encounterId: enc._id,
+        status: 'completed'
+      }).sort({ submittedAt: -1, updatedAt: -1 });
+
+      const encFields = enc.fields && enc.fields.length > 0 ? [...enc.fields] : [
+        { k: 'Encounter type', v: enc.type },
+        { k: 'Disposition', v: enc.disposition || 'Discharged' }
+      ];
+
+      if (survey) {
+        if (survey.recoveryStatus && !encFields.some(f => f.k === 'Patient Recovery Feedback')) {
+          encFields.push({ k: 'Patient Recovery Feedback', v: survey.recoveryStatus });
+        }
+        if (survey.comments && !encFields.some(f => f.k === 'Patient Comments')) {
+          encFields.push({ k: 'Patient Comments', v: survey.comments });
+        }
+        if ((survey.submittedAt || survey.updatedAt) && !encFields.some(f => f.k === 'Feedback Submitted Date')) {
+          encFields.push({ k: 'Feedback Submitted Date', v: formatAuditDate(survey.submittedAt || survey.updatedAt) });
+        }
+      }
+
       return {
         id: enc._id.toString(),
         cat: 'encounters',
@@ -142,10 +198,14 @@ export class RecordsService {
         summary: enc.summary,
         status: enc.status,
         updated: formatAuditDate(enc.updatedAt || enc.occurredAt),
-        fields: enc.fields && enc.fields.length > 0 ? enc.fields : [
-          { k: 'Encounter type', v: enc.type },
-          { k: 'Disposition', v: enc.disposition || 'Discharged' }
-        ]
+        fields: encFields,
+        followUpSurvey: survey ? {
+          id: survey._id.toString(),
+          status: survey.status,
+          recoveryStatus: survey.recoveryStatus,
+          comments: survey.comments,
+          submittedAt: survey.submittedAt || survey.updatedAt
+        } : undefined
       };
     }
 

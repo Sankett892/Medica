@@ -12,6 +12,7 @@ import { QRAuthorization } from '../src/models/QRAuthorization.js';
 import { AuditEvent } from '../src/models/AuditEvent.js';
 import { SystemStatus } from '../src/models/SystemStatus.js';
 import { AnalyticsSnapshot } from '../src/models/AnalyticsSnapshot.js';
+import { hashPassword } from '../src/modules/auth/service.js';
 
 async function seed() {
   console.log('[Seed] Starting HackMatrix DEMO dataset population...');
@@ -170,11 +171,15 @@ async function seed() {
   });
 
   // 4. Users (linking roles)
+  const defaultPw = hashPassword('Password@123');
+
   const userAdmin = await User.create({
     clerkUserId: 'u1',
     role: 'ADMIN',
     name: 'admin.rao',
     email: 'admin.rao@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgHQ._id,
     status: 'Active'
   });
@@ -184,6 +189,8 @@ async function seed() {
     role: 'CLINICIAN',
     name: 'Dr. Neha Kapoor',
     email: 'neha.kapoor@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgSunrise._id,
     linkedPractitionerId: practNeha._id,
     status: 'Active'
@@ -194,6 +201,8 @@ async function seed() {
     role: 'CLINICIAN',
     name: 'Dr. Rohit Verma',
     email: 'rohit.verma@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgSunrise._id,
     linkedPractitionerId: practRohit._id,
     status: 'Active'
@@ -204,6 +213,8 @@ async function seed() {
     role: 'PATIENT',
     name: 'Ananya Sharma',
     email: 'ananya.sharma@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientAnanya._id,
     status: 'Active'
   });
@@ -213,6 +224,8 @@ async function seed() {
     role: 'PATIENT',
     name: 'Meera Nair',
     email: 'meera.nair@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientMeera._id,
     status: 'Active'
   });
@@ -222,6 +235,8 @@ async function seed() {
     role: 'PATIENT',
     name: 'Rohan Patel',
     email: 'rohan.deshmukh@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientRohan._id,
     status: 'Active'
   });
@@ -231,8 +246,32 @@ async function seed() {
     role: 'CLINICIAN',
     name: 'Dr. Anand Rao',
     email: 'anand.rao@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgCity._id,
     linkedPractitionerId: practAnand._id,
+    status: 'Active'
+  });
+
+  const userPatientPriya = await User.create({
+    clerkUserId: 'u8',
+    role: 'PATIENT',
+    name: 'Priya Sen',
+    email: 'priya.sen@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
+    linkedPatientId: patientPriya._id,
+    status: 'Active'
+  });
+
+  const userAdminKavita = await User.create({
+    clerkUserId: 'u9',
+    role: 'ADMIN',
+    name: 'Kavita Sundaram',
+    email: 'kavita.admin@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
+    orgId: orgHQ._id,
     status: 'Active'
   });
 
@@ -311,6 +350,167 @@ async function seed() {
       clinicianName: 'Nurse station',
       effectiveAt: new Date('2026-08-02T09:30:00Z'),
       fields: [{ k: 'BMI', v: '22.4 kg/m²' }]
+    },
+
+    // Vitals for Meera Nair
+    {
+      patientId: patientMeera._id,
+      category: 'vital',
+      code: 'BP',
+      display: 'Blood pressure',
+      value: '134/86',
+      unit: 'mmHg',
+      status: 'Final',
+      facility: 'Sunrise Multispecialty Hospital',
+      clinicianName: 'Dr. Neha Kapoor',
+      effectiveAt: new Date('2026-10-08T10:30:00Z'),
+      fields: [{ k: 'Blood pressure', v: '134/86 mmHg' }]
+    },
+    {
+      patientId: patientMeera._id,
+      category: 'vital',
+      code: 'HR',
+      display: 'Heart rate',
+      value: '76',
+      unit: 'bpm',
+      status: 'Final',
+      facility: 'Sunrise Multispecialty Hospital',
+      clinicianName: 'Dr. Neha Kapoor',
+      effectiveAt: new Date('2026-10-08T10:30:00Z'),
+      fields: [{ k: 'Heart rate', v: '76 bpm' }]
+    },
+    {
+      patientId: patientMeera._id,
+      category: 'measurement',
+      code: 'GLU',
+      display: 'Blood Glucose (Fasting)',
+      value: '108',
+      unit: 'mg/dL',
+      status: 'Final',
+      facility: 'Sunrise Multispecialty Hospital',
+      clinicianName: 'Diagnostic Lab',
+      effectiveAt: new Date('2026-10-08T08:00:00Z'),
+      fields: [{ k: 'Glucose', v: '108 mg/dL' }]
+    },
+
+    // Vitals for Rohan Patel
+    {
+      patientId: patientRohan._id,
+      category: 'vital',
+      code: 'BP',
+      display: 'Blood pressure',
+      value: '122/78',
+      unit: 'mmHg',
+      status: 'Final',
+      facility: 'City Medical Centre',
+      clinicianName: 'Dr. Anand Rao',
+      effectiveAt: new Date('2026-10-09T14:15:00Z'),
+      fields: [{ k: 'Blood pressure', v: '122/78 mmHg' }]
+    },
+    {
+      patientId: patientRohan._id,
+      category: 'vital',
+      code: 'HR',
+      display: 'Heart rate',
+      value: '70',
+      unit: 'bpm',
+      status: 'Final',
+      facility: 'City Medical Centre',
+      clinicianName: 'Dr. Anand Rao',
+      effectiveAt: new Date('2026-10-09T14:15:00Z'),
+      fields: [{ k: 'Heart rate', v: '70 bpm' }]
+    },
+    {
+      patientId: patientRohan._id,
+      category: 'vital',
+      code: 'SPO2',
+      display: 'SpO2 (Oxygen Saturation)',
+      value: '99',
+      unit: '%',
+      status: 'Final',
+      facility: 'City Medical Centre',
+      clinicianName: 'Dr. Anand Rao',
+      effectiveAt: new Date('2026-10-09T14:15:00Z'),
+      fields: [{ k: 'SpO2', v: '99%' }]
+    },
+
+    // Vitals for Priya Sen
+    {
+      patientId: patientPriya._id,
+      category: 'vital',
+      code: 'BP',
+      display: 'Blood pressure',
+      value: '116/74',
+      unit: 'mmHg',
+      status: 'Final',
+      facility: 'Sunrise Multispecialty Hospital',
+      clinicianName: 'Nurse station',
+      effectiveAt: new Date('2026-10-07T11:00:00Z'),
+      fields: [{ k: 'Blood pressure', v: '116/74 mmHg' }]
+    },
+    {
+      patientId: patientPriya._id,
+      category: 'vital',
+      code: 'HR',
+      display: 'Heart rate',
+      value: '68',
+      unit: 'bpm',
+      status: 'Final',
+      facility: 'Sunrise Multispecialty Hospital',
+      clinicianName: 'Nurse station',
+      effectiveAt: new Date('2026-10-07T11:00:00Z'),
+      fields: [{ k: 'Heart rate', v: '68 bpm' }]
+    }
+  ]);
+
+  // Extra Encounters for Meera, Rohan, Priya
+  await Encounter.create([
+    {
+      patientId: patientMeera._id,
+      clinicianId: practNeha._id,
+      clinicianName: 'Dr. Neha Kapoor',
+      orgId: orgSunrise._id,
+      facility: 'Sunrise Multispecialty Hospital',
+      type: 'Cardiology consultation',
+      summary: 'Hypertension and lipid panel follow-up; adjusted telmisartan dose.',
+      status: 'Completed',
+      occurredAt: new Date('2026-10-08T10:45:00Z'),
+      fields: [
+        { k: 'Encounter type', v: 'OPD follow-up' },
+        { k: 'Disposition', v: 'Discharged with prescription' },
+        { k: 'Follow-up', v: 'Review in 3 months' }
+      ]
+    },
+    {
+      patientId: patientRohan._id,
+      clinicianId: practAnand._id,
+      clinicianName: 'Dr. Anand Rao',
+      orgId: orgCity._id,
+      facility: 'City Medical Centre',
+      type: 'Pulmonology follow-up',
+      summary: 'Mild intermittent bronchial asthma review; peak flow satisfactory at 480 L/min.',
+      status: 'Completed',
+      occurredAt: new Date('2026-10-09T14:30:00Z'),
+      fields: [
+        { k: 'Encounter type', v: 'Outpatient consultation' },
+        { k: 'Disposition', v: 'Stable on inhaled therapy' },
+        { k: 'Follow-up', v: 'As needed / 6 months' }
+      ]
+    },
+    {
+      patientId: patientPriya._id,
+      clinicianId: practRohit._id,
+      clinicianName: 'Dr. Rohit Verma',
+      orgId: orgSunrise._id,
+      facility: 'Sunrise Multispecialty Hospital',
+      type: 'Dermatology review',
+      summary: 'Contact dermatitis review; skin barrier cream and oral antihistamine advised.',
+      status: 'Completed',
+      occurredAt: new Date('2026-10-07T11:30:00Z'),
+      fields: [
+        { k: 'Encounter type', v: 'OPD consultation' },
+        { k: 'Disposition', v: 'Discharged home' }
+      ]
     }
   ]);
 
@@ -395,6 +595,211 @@ async function seed() {
         { k: 'Goal', v: 'Maintain BP < 130/80' },
         { k: 'Review', v: 'Every 3 months' },
         { k: 'Owner', v: 'Primary care' }
+      ]
+    },
+
+    // Resources for Meera Nair
+    {
+      patientId: patientMeera._id,
+      cat: 'medications',
+      type: 'Active medication',
+      date: '08 Oct 2026',
+      occurredAt: new Date('2026-10-08T10:45:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Neha Kapoor',
+      summary: 'Telmisartan 40 mg once daily for essential hypertension.',
+      status: 'Active',
+      fields: [
+        { k: 'Drug', v: 'Telmisartan' },
+        { k: 'Dose', v: '40 mg' },
+        { k: 'Frequency', v: 'Once daily (morning)' },
+        { k: 'Route', v: 'Oral' }
+      ]
+    },
+    {
+      patientId: patientMeera._id,
+      cat: 'medications',
+      type: 'Active medication',
+      date: '08 Oct 2026',
+      occurredAt: new Date('2026-10-08T10:45:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Neha Kapoor',
+      summary: 'Atorvastatin 10 mg at bedtime for hyperlipidemia.',
+      status: 'Active',
+      fields: [
+        { k: 'Drug', v: 'Atorvastatin' },
+        { k: 'Dose', v: '10 mg' },
+        { k: 'Frequency', v: 'Once daily (night)' },
+        { k: 'Route', v: 'Oral' }
+      ]
+    },
+    {
+      patientId: patientMeera._id,
+      cat: 'allergies',
+      type: 'Allergy',
+      date: '14 May 2021',
+      occurredAt: new Date('2021-05-14T09:00:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Rohit Verma',
+      summary: 'Sulfa drugs — severe generalized urticaria and facial angioedema.',
+      status: 'Active',
+      fields: [
+        { k: 'Substance', v: 'Sulfamethoxazole / Sulfa antibiotics' },
+        { k: 'Reaction', v: 'Severe urticaria, angioedema' },
+        { k: 'Severity', v: 'High' }
+      ]
+    },
+    {
+      patientId: patientMeera._id,
+      cat: 'reports',
+      type: 'Laboratory report',
+      date: '08 Oct 2026',
+      occurredAt: new Date('2026-10-08T09:30:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Neha Kapoor',
+      summary: 'Lipid Profile: Total Cholesterol 210 mg/dL, LDL 132 mg/dL, HDL 48 mg/dL.',
+      status: 'Final',
+      fields: [
+        { k: 'Total Cholesterol', v: '210 mg/dL' },
+        { k: 'LDL Cholesterol', v: '132 mg/dL' },
+        { k: 'HDL Cholesterol', v: '48 mg/dL' },
+        { k: 'Fasting Blood Sugar', v: '108 mg/dL' }
+      ]
+    },
+    {
+      patientId: patientMeera._id,
+      cat: 'careplans',
+      type: 'Care plan',
+      date: '08 Oct 2026',
+      occurredAt: new Date('2026-10-08T10:50:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Neha Kapoor',
+      summary: 'Cardiovascular Risk Reduction Plan: DASH diet, sodium restriction, 30 min daily walking.',
+      status: 'Active',
+      fields: [
+        { k: 'Goal', v: 'Target BP < 130/80 mmHg, LDL < 100 mg/dL' },
+        { k: 'Lifestyle', v: 'DASH Diet, brisk walking 150 min/wk' },
+        { k: 'Review', v: '3 months' }
+      ]
+    },
+
+    // Resources for Rohan Patel
+    {
+      patientId: patientRohan._id,
+      cat: 'medications',
+      type: 'Active medication',
+      date: '09 Oct 2026',
+      occurredAt: new Date('2026-10-09T14:30:00Z'),
+      facility: 'City Medical Centre',
+      clinician: 'Dr. Anand Rao',
+      summary: 'Salbutamol Inhaler 100 mcg — 2 puffs PRN for acute shortness of breath.',
+      status: 'Active',
+      fields: [
+        { k: 'Drug', v: 'Salbutamol HFA' },
+        { k: 'Dose', v: '100 mcg/actuation' },
+        { k: 'Frequency', v: 'As needed (PRN)' },
+        { k: 'Route', v: 'Inhalation' }
+      ]
+    },
+    {
+      patientId: patientRohan._id,
+      cat: 'medications',
+      type: 'Active medication',
+      date: '09 Oct 2026',
+      occurredAt: new Date('2026-10-09T14:30:00Z'),
+      facility: 'City Medical Centre',
+      clinician: 'Dr. Anand Rao',
+      summary: 'Budesonide DPI 200 mcg — 1 inhalation twice daily maintenance.',
+      status: 'Active',
+      fields: [
+        { k: 'Drug', v: 'Budesonide' },
+        { k: 'Dose', v: '200 mcg' },
+        { k: 'Frequency', v: 'Twice daily' },
+        { k: 'Route', v: 'Inhalation' }
+      ]
+    },
+    {
+      patientId: patientRohan._id,
+      cat: 'allergies',
+      type: 'Allergy',
+      date: '10 Feb 2018',
+      occurredAt: new Date('2018-02-10T12:00:00Z'),
+      facility: 'City Medical Centre',
+      clinician: 'Dr. Anand Rao',
+      summary: 'Aspirin & NSAIDs — severe bronchospasm and wheezing exacerbation.',
+      status: 'Active',
+      fields: [
+        { k: 'Substance', v: 'Aspirin (NSAIDs)' },
+        { k: 'Reaction', v: 'Acute bronchospasm, wheezing' },
+        { k: 'Severity', v: 'High' }
+      ]
+    },
+    {
+      patientId: patientRohan._id,
+      cat: 'reports',
+      type: 'Laboratory report',
+      date: '09 Oct 2026',
+      occurredAt: new Date('2026-10-09T14:00:00Z'),
+      facility: 'City Medical Centre',
+      clinician: 'Dr. Anand Rao',
+      summary: 'Spirometry Assessment: FEV1/FVC 78%, post-bronchodilator reversibility confirmed.',
+      status: 'Final',
+      fields: [
+        { k: 'FEV1', v: '3.2 L (84% predicted)' },
+        { k: 'FVC', v: '4.1 L (91% predicted)' },
+        { k: 'FEV1/FVC', v: '78%' },
+        { k: 'Reversibility', v: 'Positive (+14%)' }
+      ]
+    },
+    {
+      patientId: patientRohan._id,
+      cat: 'careplans',
+      type: 'Care plan',
+      date: '09 Oct 2026',
+      occurredAt: new Date('2026-10-09T14:40:00Z'),
+      facility: 'City Medical Centre',
+      clinician: 'Dr. Anand Rao',
+      summary: 'Asthma Self-Management Action Plan: Green/Yellow/Red zone peak flow guidance.',
+      status: 'Active',
+      fields: [
+        { k: 'Goal', v: 'Zero nocturnal awakening, normal daytime activity' },
+        { k: 'Trigger Avoidance', v: 'Smoke, cold air, aspirin' },
+        { k: 'Vaccination', v: 'Annual Influenza, Pneumococcal conjugate' }
+      ]
+    },
+
+    // Resources for Priya Sen
+    {
+      patientId: patientPriya._id,
+      cat: 'medications',
+      type: 'Active medication',
+      date: '07 Oct 2026',
+      occurredAt: new Date('2026-10-07T11:30:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Rohit Verma',
+      summary: 'Cetirizine 10 mg once daily for pruritus and allergy flare-up.',
+      status: 'Active',
+      fields: [
+        { k: 'Drug', v: 'Cetirizine' },
+        { k: 'Dose', v: '10 mg' },
+        { k: 'Frequency', v: 'Once daily' },
+        { k: 'Route', v: 'Oral' }
+      ]
+    },
+    {
+      patientId: patientPriya._id,
+      cat: 'allergies',
+      type: 'Allergy',
+      date: '12 Jan 2022',
+      occurredAt: new Date('2022-01-12T10:00:00Z'),
+      facility: 'Sunrise Multispecialty Hospital',
+      clinician: 'Dr. Rohit Verma',
+      summary: 'Latex — localized erythema and contact dermatitis.',
+      status: 'Active',
+      fields: [
+        { k: 'Substance', v: 'Natural rubber latex' },
+        { k: 'Reaction', v: 'Contact dermatitis, erythema' },
+        { k: 'Severity', v: 'Moderate' }
       ]
     }
   ]);
@@ -495,14 +900,30 @@ async function seed() {
     }
   ]);
 
-  // 9. QR Authorization Token
-  await QRAuthorization.create({
-    patientId: patientAnanya._id,
-    token: 'HMX-QR-DEMO-7F3A91',
-    status: 'active',
-    createdBy: userPatientAnanya._id,
-    expiresAt: new Date(Date.now() + 300 * 1000)
-  });
+  // 9. QR Authorization Tokens
+  await QRAuthorization.create([
+    {
+      patientId: patientAnanya._id,
+      token: 'HMX-QR-DEMO-7F3A91',
+      status: 'active',
+      createdBy: userPatientAnanya._id,
+      expiresAt: new Date(Date.now() + 86400 * 1000)
+    },
+    {
+      patientId: patientMeera._id,
+      token: 'HMX-QR-MEERA-31877',
+      status: 'active',
+      createdBy: userPatientMeera._id,
+      expiresAt: new Date(Date.now() + 86400 * 1000)
+    },
+    {
+      patientId: patientRohan._id,
+      token: 'HMX-QR-ROHAN-28110',
+      status: 'active',
+      createdBy: userPatientRohan._id,
+      expiresAt: new Date(Date.now() + 86400 * 1000)
+    }
+  ]);
 
   // 10. Audit Events
   await AuditEvent.create([

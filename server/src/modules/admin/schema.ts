@@ -8,8 +8,9 @@ export const surveillanceQuerySchema = z.object({
 
 export const facilitiesQuerySchema = z.object({
   q: z.string().optional().default(''),
+  region: z.string().optional(),
   page: z.coerce.number().optional().default(1),
-  pageSize: z.coerce.number().optional().default(5)
+  pageSize: z.coerce.number().optional().default(20)
 });
 
 export const auditQuerySchema = z.object({

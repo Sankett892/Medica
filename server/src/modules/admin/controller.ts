@@ -110,3 +110,30 @@ export async function getSettings(req: Request, res: Response, next: NextFunctio
     next(error);
   }
 }
+
+export async function getPuneMap(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { diseaseCategory, locality, region, taluka, startDate, endDate, k } = req.query;
+    const data = await adminService.getPuneIntelligenceMap({
+      diseaseCategory: diseaseCategory ? String(diseaseCategory) : undefined,
+      locality: locality ? String(locality) : undefined,
+      region: (region || taluka) ? String(region || taluka) : undefined,
+      startDate: startDate ? String(startDate) : undefined,
+      endDate: endDate ? String(endDate) : undefined,
+      k: k ? parseInt(String(k), 10) : undefined
+    });
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getFollowUpAnalytics(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await adminService.getFollowUpAnalytics();
+    res.json({ data });
+  } catch (error) {
+    next(error);
+  }
+}
+

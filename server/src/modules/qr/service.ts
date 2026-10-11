@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import { QRAuthorization, IQRAuthorization } from '../../models/QRAuthorization.js';
 import { Patient } from '../../models/Patient.js';
 import { ConsentGrant } from '../../models/ConsentGrant.js';
-import { createAuditEvent } from '../../middleware/audit.js';
+import { createAuditEvent, formatAuditDate } from '../../middleware/audit.js';
+import { emitConsentEvent } from '../../config/socket.js';
 import { AppError } from '../../middleware/errorHandler.js';
 
 export class QRService {
@@ -42,7 +43,9 @@ export class QRService {
       let targetPatient = null;
       if (up.includes('MEERA') || up.includes('31877')) {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-31877' });
-      } else if (up.includes('ROHAN') || up.includes('45520')) {
+      } else if (up.includes('ROHAN') || up.includes('28110') || up.includes('45520')) {
+        targetPatient = await Patient.findOne({ identifiers: 'HMX-P-28110' }) || await Patient.findOne({ identifiers: 'HMX-P-45520' });
+      } else if (up.includes('PRIYA') || up.includes('45520')) {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-45520' });
       } else if (up.includes('ANANYA') || up.includes('20481') || up.includes('DEMO') || up.startsWith('HMX-QR')) {
         targetPatient = await Patient.findOne({ identifiers: 'HMX-P-20481' }) || await Patient.findOne();
@@ -138,6 +141,58 @@ export class QRService {
       ]
     }).sort({ createdAt: -1 });
 
+    let pendingGrant = null;
+    if (!activeGrant) {
+      // Find or create pending consent request so it immediately shows up on patient's consent page
+      pendingGrant = await ConsentGrant.findOne({
+        patientId: patient._id,
+        recipient: clinicianUser.name,
+        status: 'pending'
+      });
+
+      if (!pendingGrant) {
+        const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        pendingGrant = await ConsentGrant.create({
+          patientId: patient._id,
+          granteeType: 'practitioner',
+          granteeId: clinicianUser._id,
+          recipient: clinicianUser.name,
+          role: clinicianUser.dept || 'Consulting Physician',
+          org: clinicianUser.orgName || 'Sunrise Multispecialty Hospital',
+          orgId: clinicianUser.orgId,
+          scope: ['Encounters', 'Observations', 'Medications', 'Allergies'],
+          purpose: 'Clinical intake & QR Consultation',
+          start: formatAuditDate(now),
+          expires: formatAuditDate(expiresAt),
+          status: 'pending',
+          grantedAt: now,
+          expiresAt,
+          createdBy: clinicianUser._id
+        });
+
+        // Audit request
+        await createAuditEvent({
+          actorId: clinicianUser._id,
+          actor: clinicianUser.name,
+          actorRole: 'Clinician',
+          orgId: clinicianUser.orgId,
+          patientId: patient._id,
+          action: 'QR scan initiated consent request',
+          resource: patient.name,
+          outcome: 'pending'
+        });
+
+        // Notify patient in real-time
+        emitConsentEvent(patient._id.toString(), 'consent:requested', {
+          grantId: pendingGrant._id.toString(),
+          recipient: clinicianUser.name,
+          org: clinicianUser.orgName || 'Sunrise Multispecialty Hospital',
+          purpose: 'Clinical intake & QR Consultation',
+          scope: ['Encounters', 'Observations', 'Medications', 'Allergies']
+        });
+      }
+    }
+
     // Mark QR token as used (single-use burn) for non-demo tokens
     if (!isDemoToken) {
       qr.status = 'used';
@@ -155,10 +210,12 @@ export class QRService {
       patientId: patient._id,
       action: 'QR identification',
       resource: 'Patient identity',
-      outcome: 'granted'
+      outcome: activeGrant ? 'granted' : 'pending'
     });
 
     return {
+      hasActiveConsent: !!activeGrant,
+      pendingGrantId: pendingGrant ? pendingGrant._id.toString() : null,
       patient: {
         id: patient.identifiers[0] || patient._id.toString(),
         _id: patient._id,
@@ -170,10 +227,10 @@ export class QRService {
         facility: patient.facility,
         consent: activeGrant
           ? `${activeGrant.purpose} — active`
-          : 'Emergency access grant — active',
-        grantRef: activeGrant ? activeGrant._id.toString().slice(-4) : 'qr-auth',
+          : 'Pending patient approval on Consent portal',
+        grantRef: activeGrant ? activeGrant._id.toString().slice(-4) : (pendingGrant ? pendingGrant._id.toString().slice(-4) : 'qr-auth'),
         scope: activeGrant ? activeGrant.scope : ['Encounters', 'Observations', 'Allergies', 'Medications'],
-        expires: activeGrant ? activeGrant.expires : '12 hours'
+        expires: activeGrant ? activeGrant.expires : 'Awaiting patient approval'
       }
     };
   }

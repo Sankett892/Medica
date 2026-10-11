@@ -3,11 +3,13 @@ import { app } from './app.js';
 import { config } from './config/env.js';
 import { connectDB } from './config/db.js';
 import { initSocketIO } from './config/socket.js';
+import { seedFacilities } from './seeds/facilities.js';
 
 async function bootstrap() {
   try {
     // 1. Connect Database
     await connectDB();
+    await seedFacilities();
 
     // 2. Create HTTP & Socket.IO server
     const server = http.createServer(app);

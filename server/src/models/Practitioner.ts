@@ -8,6 +8,13 @@ export interface IPractitioner extends Document {
   dept?: string;
   licenseNo: string;
   facilities: string[];
+  location?: {
+    city: string;
+    state: string;
+    country: string;
+    locality: string;
+    hospitalOrClinic?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,7 +27,14 @@ const PractitionerSchema = new Schema<IPractitioner>(
     specialty: { type: String, required: true, trim: true },
     dept: { type: String, trim: true },
     licenseNo: { type: String, required: true, trim: true },
-    facilities: [{ type: String, trim: true }]
+    facilities: [{ type: String, trim: true }],
+    location: {
+      city: { type: String, trim: true, default: 'Pune' },
+      state: { type: String, trim: true, default: 'Maharashtra' },
+      country: { type: String, trim: true, default: 'India' },
+      locality: { type: String, trim: true, index: true },
+      hospitalOrClinic: { type: String, trim: true }
+    }
   },
   { timestamps: true }
 );

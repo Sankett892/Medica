@@ -10,6 +10,7 @@ export const syncUserSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().optional(),
+  identifier: z.string().optional(),
   password: z.string().optional(),
   persona: z.string().optional(),
   role: z.enum(['PATIENT', 'CLINICIAN', 'ADMIN']).optional()
@@ -27,11 +28,15 @@ export const registerSchema = z.object({
   bloodType: z.string().optional(),
   phone: z.string().optional(),
   allergies: z.array(z.string()).optional(),
+  locality: z.string().optional(),
+  city: z.string().optional(),
+  address: z.string().optional(),
   // Clinician fields
   licenseNo: z.string().optional(),
   specialty: z.string().optional(),
   dept: z.string().optional(),
   facility: z.string().optional(),
+  hospitalOrClinic: z.string().optional(),
   // Admin / General fields
   organization: z.string().optional()
 });

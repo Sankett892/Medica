@@ -214,6 +214,14 @@ a { color: var(--blue); }
   border-bottom: 1px solid rgba(255, 255, 255, .08);
   z-index: 60;
 }
+html.is-embedded .demo-bar,
+body.is-embedded .demo-bar {
+  display: none !important;
+}
+html.is-embedded,
+html.is-embedded body {
+  height: 100%;
+}
 .demo-bar__tag {
   display: inline-flex;
   align-items: center;

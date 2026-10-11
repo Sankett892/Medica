@@ -59,7 +59,7 @@ router.get('/me/audit', getPatientAudit);
 router.get('/me/grants', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const patientId = req.user!.linkedPatientId!;
-    const tab = (req.query.tab as string) || 'active';
+    const tab = (req.query.tab as string) || 'all';
     const data = await consentService.getGrantsForPatient(patientId, tab);
     res.json({ data });
   } catch (err) {
@@ -92,6 +92,26 @@ router.post('/me/grants/:id/revoke', async (req: Request, res: Response, next: N
   try {
     const patientId = req.user!.linkedPatientId!;
     const data = await consentService.revokeGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/me/grants/:id/approve', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const patientId = req.user!.linkedPatientId!;
+    const data = await consentService.approveGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/me/grants/:id/reject', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const patientId = req.user!.linkedPatientId!;
+    const data = await consentService.rejectGrant(patientId, req.params.id as string, req.user!._id, req.user!.name);
     res.json({ data });
   } catch (err) {
     next(err);

@@ -31,6 +31,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <script>
+    if (window.self !== window.top) {
+      document.documentElement.classList.add('is-embedded');
+    }
+  </script>
 
   <style>
     :root {
@@ -206,11 +213,11 @@
 
     <span class="demo-bar__spacer"></span>
 
-    <div class="demo-bar__group" role="group">
-      <a href="index.html" class="demo-tab" style="text-decoration:none;">Gateway</a>
-      <a href="patient.html" class="demo-tab" style="text-decoration:none;">Patient App</a>
-      <a href="clinician.html" class="demo-tab" style="text-decoration:none;">Clinician App</a>
-      <a href="admin.html" class="demo-tab" aria-current="true" style="text-decoration:none;">Admin Console</a>
+    <div class="demo-bar__group" role="group" aria-label="Portal Navigation">
+      <a href="index.html" class="demo-tab" style="text-decoration:none;">🏠 Gateway HUB</a>
+      <a href="patient.html" class="demo-tab" style="text-decoration:none;">👤 Patient Portal</a>
+      <a href="clinician.html" class="demo-tab" style="text-decoration:none;">🩺 Clinician Portal</a>
+      <a href="admin.html" class="demo-tab active" aria-current="true" style="text-decoration:none;">📊 Admin &amp; Pune Map</a>
     </div>
 
     <div class="demo-bar__themes">
@@ -227,49 +234,65 @@
 
   <!-- 1. ADMIN AUTHENTICATION VIEW -->
   <div id="admin-auth-view" class="auth-container" style="display:none;">
+    <!-- Role Switcher (Patient / Clinician / Admin) -->
+    <div style="margin-bottom: 20px;">
+      <label style="display:block; font-size:11px; font-weight:700; color:var(--text-2, #64748B); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Login Portal / Role</label>
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; background:var(--surface-2, #F1F5F9); padding:4px; border-radius:12px;">
+        <a href="patient.html" class="role-selector-btn" style="padding:9px 6px; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B); display:flex; align-items:center; justify-content:center; gap:5px; text-decoration:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.2 8-6.2s8 2.2 8 6.2"/></svg>
+          Patient
+        </a>
+        <a href="clinician.html" class="role-selector-btn" style="padding:9px 6px; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B); display:flex; align-items:center; justify-content:center; gap:5px; text-decoration:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/></svg>
+          Clinician
+        </a>
+        <a href="admin.html" class="role-selector-btn" style="padding:9px 6px; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; background:#D97706; color:#fff; display:flex; align-items:center; justify-content:center; gap:5px; text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg>
+          Admin
+        </a>
+      </div>
+    </div>
+
     <div class="auth-brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
       </svg>
-        <div>
-          <h2 style="margin:0; font-size: 20px; font-weight: 700; color: var(--text);">Admin Portal</h2>
-          <p style="margin:2px 0 0; font-size: 13px; color: var(--text-2);">Public Health & Clinical Governance</p>
+      <div>
+        <h2 style="margin:0; font-size: 19px; font-weight: 700; color: var(--text);">Administrator Console</h2>
+        <p style="margin:2px 0 0; font-size: 12px; color: var(--text-2);">Public Health Surveillance &amp; Zero-Knowledge Audit</p>
+      </div>
+    </div>
+
+    <!-- Tab Switcher: Sign In vs Register -->
+    <div style="display:flex; background:var(--surface-2, #F1F5F9); padding:4px; border-radius:12px; margin-bottom:18px; gap:4px;">
+      <button id="tab-admin-signin" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:var(--surface, #fff); color:var(--text, #172B3A); box-shadow:0 1px 3px rgba(0,0,0,0.08);">Sign In</button>
+      <button id="tab-admin-register" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B);">Register Official</button>
+    </div>
+
+    <div id="admin-error-banner" style="display:none; padding:10px 14px; background:#FEF2F2; color:#B91C1C; border-radius:10px; font-size:13px; margin-bottom:16px;"></div>
+
+    <!-- SIGN IN PANE -->
+    <div id="pane-admin-signin">
+      <form id="admin-login-form">
+        <div class="auth-field">
+          <label for="admin-email">Administrator Email or Username</label>
+          <input type="text" id="admin-email" placeholder="e.g. admin.rao@hackmatrix.demo or admin" autocomplete="username" required />
         </div>
-      </div>
-
-      <!-- Tab Switcher: Sign In vs Register -->
-      <div style="display:flex; background:var(--surface-2, #F1F5F9); padding:4px; border-radius:12px; margin-bottom:20px; gap:4px;">
-        <button id="tab-admin-signin" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:var(--surface, #fff); color:var(--text, #172B3A); box-shadow:0 1px 3px rgba(0,0,0,0.08);">Sign In</button>
-        <button id="tab-admin-register" type="button" style="flex:1; padding:8px 12px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-2, #64748B);">Register Official</button>
-      </div>
-
-      <div id="admin-error-banner" style="display:none; padding:10px 14px; background:#FEF2F2; color:#B91C1C; border-radius:10px; font-size:13px; margin-bottom:16px;"></div>
-
-      <!-- SIGN IN PANE -->
-      <div id="pane-admin-signin">
-        <button id="btn-quick-admin-login" class="auth-btn-quick" type="button">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-          Sign In as admin.rao (Public Health Admin)
-        </button>
-
-        <div style="display:flex; align-items:center; text-align:center; margin:20px 0; color:var(--text-3); font-size:12px; font-weight:600; text-transform:uppercase;">
-          <span style="flex:1; border-bottom:1px solid var(--border);"></span>
-          <span style="padding:0 10px;">Or Official Government ID</span>
-          <span style="flex:1; border-bottom:1px solid var(--border);"></span>
+        <div class="auth-field">
+          <label for="admin-password">Administrative Password</label>
+          <input type="password" id="admin-password" placeholder="••••••••" autocomplete="current-password" required />
         </div>
+        <button type="submit" class="hm-btn hm-btn--primary" style="width:100%; padding:12px; font-size:14px; font-weight:600; background:#D97706;">Authenticate Administrator</button>
+      </form>
 
-        <form id="admin-login-form">
-          <div class="auth-field">
-            <label for="admin-email">Official Health Authority Email</label>
-            <input type="email" id="admin-email" value="admin.rao@karnataka.gov.in" required />
-          </div>
-          <div class="auth-field">
-            <label for="admin-password">Administrative Password</label>
-            <input type="password" id="admin-password" placeholder="Enter password" required />
-          </div>
-          <button type="submit" class="hm-btn hm-btn--primary" style="width:100%; padding:12px; font-size:14px; font-weight:600;">Authenticate Administrator</button>
-        </form>
-      </div>
+      <details style="margin-top: 16px; font-size: 11px; color: var(--text-2, #64748B); background: var(--surface-2, #F8FAFC); border: 1px solid var(--border, #E2E8F0); border-radius: 8px; padding: 8px 12px;">
+        <summary style="cursor: pointer; font-weight: 600; color: var(--text, #172B3A);">💡 Testing Credentials Guide (Click to expand)</summary>
+        <div style="margin-top: 8px; line-height: 1.6;">
+          <div>• <strong>Admin Login:</strong> <code>admin.rao@hackmatrix.demo</code> (or <code>admin</code>)</div>
+          <div style="margin-top:4px; color:#D97706; font-weight:600;">• <strong>Database Password:</strong> <code>Password@123</code> (Verified cryptographic scrypt hash in MongoDB)</div>
+        </div>
+      </details>
+    </div>
 
       <!-- REGISTER PANE -->
       <div id="pane-admin-register" style="display:none;">
@@ -310,9 +333,17 @@
       </div>
 
       <div class="admin-sidebar-title">Analytics</div>
-      <button class="admin-nav-item active" data-view="overview">
+      <button class="admin-nav-item active" data-view="pune-map" style="color: #2DD4BF; font-weight: 700;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.3-7-11a7 7 0 0 1 14 0c0 4.7-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        Pune District Disease Map
+      </button>
+      <button class="admin-nav-item" data-view="overview">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
         Overview KPI
+      </button>
+      <button class="admin-nav-item" data-view="followups">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Follow-Up Recovery
       </button>
       <button class="admin-nav-item" data-view="surveillance">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
@@ -371,7 +402,9 @@
   <div class="hm-toasts" id="toasts" aria-live="polite"></div>
   <div id="overlay"></div>
 
-  <!-- Shared REST API Client & Admin Console Logic -->
+  <!-- Shared REST API Client, Leaflet, Socket.IO & Admin Console Logic -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
   <script src="api.js"></script>
   <script src="admin.js"></script>
   <script>
@@ -383,3 +416,4 @@
   </script>
 </body>
 </html>
+

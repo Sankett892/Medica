@@ -12,7 +12,9 @@ import {
   getOrganizationById,
   getUsers,
   getStatus,
-  getSettings
+  getSettings,
+  getPuneMap,
+  getFollowUpAnalytics
 } from './controller.js';
 
 const router = Router();
@@ -23,6 +25,8 @@ router.use(requireAuth, allow('ADMIN'));
 router.get('/overview', getOverview);
 router.get('/surveillance', getSurveillance);
 router.get('/geographic', getGeographic);
+router.get('/pune-map', getPuneMap);
+router.get('/followup-analytics', getFollowUpAnalytics);
 router.get('/facilities', getFacilities);
 router.get('/privacy', getPrivacy);
 router.get('/audit', getAudit);
@@ -33,3 +37,4 @@ router.get('/status', getStatus);
 router.get('/settings', getSettings);
 
 export const adminRouter = router;
+

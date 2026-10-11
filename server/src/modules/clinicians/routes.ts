@@ -9,11 +9,13 @@ import {
   getClinicianPatient,
   getClinicianPatientRecords,
   getClinicianPatientConsent,
+  requestClinicianPatientConsent,
   resolveQR,
   recordPatientAccess,
   emergencyAccess,
   getClinicianAudit,
-  createClinicianPatientRecord
+  createClinicianPatientRecord,
+  markEncounterRecovered
 } from './controller.js';
 
 const router = Router();
@@ -28,10 +30,12 @@ router.get('/patients/:id', getClinicianPatient);
 router.get('/patients/:id/records', getClinicianPatientRecords);
 router.post('/patients/:id/records', createClinicianPatientRecord);
 router.get('/patients/:id/consent', getClinicianPatientConsent);
+router.post('/patients/:id/consent', requestClinicianPatientConsent);
 router.post('/patients/:id/access', recordPatientAccess);
 
 router.post('/qr/resolve', qrRateLimiter, resolveQR);
 router.post('/emergency', emergencyAccess);
 router.get('/audit', getClinicianAudit);
+router.post('/encounters/:id/mark-recovered', markEncounterRecovered);
 
 export const cliniciansRouter = router;

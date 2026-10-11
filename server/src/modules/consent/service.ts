@@ -22,6 +22,9 @@ export class ConsentService {
       query.status = 'pending';
     } else if (tab === 'closed') {
       query.status = { $in: ['expired', 'revoked'] };
+    } else {
+      // Returns all active and pending grants, or whatever is non-deleted
+      query.status = { $in: ['active', 'pending', 'expired', 'revoked'] };
     }
 
     const grants = await ConsentGrant.find(query).sort({ createdAt: -1 });
@@ -163,6 +166,95 @@ export class ConsentService {
       recipient: grant.recipient,
       status: grant.status,
       expires: grant.expires
+    };
+  }
+
+  async approveGrant(patientId: Types.ObjectId, grantId: string, userId: Types.ObjectId, userName: string) {
+    if (!Types.ObjectId.isValid(grantId)) {
+      throw new AppError(400, 'INVALID_IDENTIFIER', 'Invalid grant ID format');
+    }
+
+    const grant = await ConsentGrant.findOne({ _id: new Types.ObjectId(grantId), patientId });
+    if (!grant) {
+      throw new AppError(404, 'GRANT_NOT_FOUND', 'Consent grant not found');
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days default
+    grant.status = 'active';
+    grant.grantedAt = now;
+    grant.start = formatAuditDate(now);
+    grant.expiresAt = expiresAt;
+    grant.expires = '30 days';
+    await grant.save();
+
+    // Audit log
+    await createAuditEvent({
+      actorId: userId,
+      actor: userName,
+      actorRole: 'Patient',
+      patientId,
+      action: 'Approved doctor access request',
+      resource: grant.recipient,
+      resourceType: 'ConsentGrant',
+      resourceId: grant._id.toString(),
+      outcome: 'granted'
+    });
+
+    emitConsentEvent(patientId.toString(), 'grant:approved', {
+      grantId: grant._id.toString(),
+      recipient: grant.recipient,
+      status: 'active'
+    });
+
+    return {
+      id: grant._id.toString(),
+      recipient: grant.recipient,
+      status: grant.status,
+      expires: grant.expires,
+      purpose: grant.purpose,
+      scope: grant.scope
+    };
+  }
+
+  async rejectGrant(patientId: Types.ObjectId, grantId: string, userId: Types.ObjectId, userName: string) {
+    if (!Types.ObjectId.isValid(grantId)) {
+      throw new AppError(400, 'INVALID_IDENTIFIER', 'Invalid grant ID format');
+    }
+
+    const grant = await ConsentGrant.findOne({ _id: new Types.ObjectId(grantId), patientId });
+    if (!grant) {
+      throw new AppError(404, 'GRANT_NOT_FOUND', 'Consent grant not found');
+    }
+
+    grant.status = 'revoked';
+    grant.revokedAt = new Date();
+    grant.expires = 'Declined by patient';
+    await grant.save();
+
+    // Audit log
+    await createAuditEvent({
+      actorId: userId,
+      actor: userName,
+      actorRole: 'Patient',
+      patientId,
+      action: 'Rejected doctor access request',
+      resource: grant.recipient,
+      resourceType: 'ConsentGrant',
+      resourceId: grant._id.toString(),
+      outcome: 'denied'
+    });
+
+    emitConsentEvent(patientId.toString(), 'grant:rejected', {
+      grantId: grant._id.toString(),
+      recipient: grant.recipient,
+      status: 'revoked'
+    });
+
+    return {
+      id: grant._id.toString(),
+      recipient: grant.recipient,
+      status: grant.status
     };
   }
 }

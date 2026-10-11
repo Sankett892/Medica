@@ -1,4 +1,11 @@
 import { Types } from 'mongoose';
+import crypto from 'crypto';
+
+function hashPassword(password: string): { hash: string; salt: string } {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+  return { hash, salt };
+}
 import { Organization } from '../models/Organization.js';
 import { User } from '../models/User.js';
 import { Patient } from '../models/Patient.js';
@@ -351,11 +358,15 @@ async function seedSyntheticData() {
     primaryClinicianId: practAnand._id
   });
 
+  const defaultPw = hashPassword('Password@123');
+
   const userAdmin = await User.create({
     clerkUserId: 'u1',
     role: 'ADMIN',
     name: 'admin.rao',
     email: 'admin.rao@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgHQ._id,
     status: 'Active'
   });
@@ -365,6 +376,8 @@ async function seedSyntheticData() {
     role: 'CLINICIAN',
     name: 'Dr. Neha Kapoor',
     email: 'neha.kapoor@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgSunrise._id,
     linkedPractitionerId: practNeha._id,
     status: 'Active'
@@ -375,6 +388,8 @@ async function seedSyntheticData() {
     role: 'CLINICIAN',
     name: 'Dr. Rohit Verma',
     email: 'rohit.verma@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgSunrise._id,
     linkedPractitionerId: practRohit._id,
     status: 'Active'
@@ -385,6 +400,8 @@ async function seedSyntheticData() {
     role: 'PATIENT',
     name: 'Ananya Sharma',
     email: 'ananya.sharma@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientAnanya._id,
     status: 'Active'
   });
@@ -394,6 +411,8 @@ async function seedSyntheticData() {
     role: 'PATIENT',
     name: 'Meera Nair',
     email: 'meera.nair@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientMeera._id,
     status: 'Active'
   });
@@ -403,6 +422,8 @@ async function seedSyntheticData() {
     role: 'PATIENT',
     name: 'Rohan Deshmukh',
     email: 'rohan.deshmukh@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     linkedPatientId: patientRohan._id,
     status: 'Active'
   });
@@ -412,6 +433,8 @@ async function seedSyntheticData() {
     role: 'CLINICIAN',
     name: 'Dr. Anand Rao',
     email: 'anand.rao@hackmatrix.demo',
+    passwordHash: defaultPw.hash,
+    passwordSalt: defaultPw.salt,
     orgId: orgCity._id,
     linkedPractitionerId: practAnand._id,
     status: 'Active'

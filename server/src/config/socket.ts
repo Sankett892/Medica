@@ -50,3 +50,10 @@ export function emitOrgEvent(orgId: string, event: string, data: any) {
     io.to(`org:${orgId}`).emit(event, data);
   }
 }
+
+export function emitGlobalEvent(event: string, data: any) {
+  if (io) {
+    io.emit(event, data);
+  }
+}
+

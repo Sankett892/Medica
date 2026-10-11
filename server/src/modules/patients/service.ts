@@ -24,7 +24,13 @@ export class PatientsService {
       phone: patient.phone || '',
       abha: patient.abha || '',
       allergies: patient.allergies || [],
-      facility: patient.facility || ''
+      facility: patient.facility || '',
+      location: patient.location || {
+        city: 'Pune',
+        state: 'Maharashtra',
+        country: 'India',
+        locality: 'Shivajinagar'
+      }
     };
   }
 
@@ -39,6 +45,15 @@ export class PatientsService {
     }
     if (input.emergencyContact !== undefined) {
       patient.emergencyContact = input.emergencyContact;
+    }
+    if (input.location !== undefined) {
+      patient.location = {
+        city: input.location.city || 'Pune',
+        state: input.location.state || 'Maharashtra',
+        country: input.location.country || 'India',
+        locality: input.location.locality || patient.location?.locality || 'Shivajinagar',
+        address: input.location.address || patient.location?.address || ''
+      };
     }
 
     await patient.save();

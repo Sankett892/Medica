@@ -196,11 +196,11 @@
       ● Backend Connected (Port 4000)
     </span>
     <span class="demo-bar__spacer"></span>
-    <div class="demo-bar__group" role="group" aria-label="Preview workspace">
-      <a class="demo-tab" href="index.html" aria-current="true" style="text-decoration:none;">Gateway Hub</a>
-      <a class="demo-tab" href="patient.html" style="text-decoration:none;">Patient App</a>
-      <a class="demo-tab" href="clinician.html" style="text-decoration:none;">Clinician App</a>
-      <a class="demo-tab" href="admin.html" style="text-decoration:none;">Admin Console</a>
+    <div class="demo-bar__group" role="group" aria-label="Portal Navigation">
+      <a class="demo-tab active" href="index.html" aria-current="true" style="text-decoration:none;">🏠 Gateway HUB</a>
+      <a class="demo-tab" href="patient.html" style="text-decoration:none;">👤 Patient Portal</a>
+      <a class="demo-tab" href="clinician.html" style="text-decoration:none;">🩺 Clinician Portal</a>
+      <a class="demo-tab" href="admin.html" style="text-decoration:none;">📊 Admin &amp; Pune Map</a>
     </div>
     <div class="demo-bar__themes">
       <span class="demo-bar__label">Theme</span>
@@ -214,7 +214,7 @@
     </div>
     <span class="demo-bar__note">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-      Live Database Active • Full System Operational
+      Strict Auth • MongoDB Scrypt • Dynamic QR Passes
     </span>
   </div>
 
@@ -231,58 +231,274 @@
               </span>
               <span class="hm-logo__text">Hack<b>Matrix</b></span>
             </span>
-            <h1 class="welcome__title">Healthcare, with consent at the centre.</h1>
-            <p class="welcome__lede">Three distinct portals for Patients, Clinicians, and Administrators — backed by an authoritative REST API, real-time database persistence, cryptographic QR authorization, and privacy-preserving surveillance.</p>
+            <h1 class="welcome__title">Healthcare Gateway HUB.</h1>
+            <p class="welcome__lede">Unified access hub for Patients, Clinicians, and Administrators — backed by strict MongoDB scrypt authentication, cryptographic single-use QR authorization, and clinical encounter management.</p>
             <ul class="welcome__points">
-              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.4 4.4L19 7"/></svg><span><strong>Patient Portal:</strong> Self-service medical history, active consent revocation, and dynamic single-use QR pass generation.</span></li>
-              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.4 4.4L19 7"/></svg><span><strong>Clinician Portal:</strong> Optical QR scanner resolver, strictly scoped records viewer, and audited emergency break-glass override.</span></li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.4 4.4L19 7"/></svg><span><strong>Patient Portal:</strong> Individual health records (Ananya, Meera, Rohan, Priya), personal lab tests, active consent revoking, and single-use dynamic QR passes.</span></li>
+              <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.4 4.4L19 7"/></svg><span><strong>Clinician Portal:</strong> Optical QR pass scanner, assigned patient records, scoped clinical observations, and instant encounter note publishing.</span></li>
               <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 4.4 4.4L19 7"/></svg><span><strong>Administrator Console:</strong> Epidemiological disease surveillance, dynamic $k$-anonymity suppression, hospital bed capacity, and HMAC tamper-evident audit ledger.</span></li>
             </ul>
             <div class="demo-callout" style="background: rgba(15, 118, 110, 0.15); border: 1px solid rgba(45, 212, 191, 0.3);">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
-              <span><strong>Live Backend Active:</strong> Running on port 4000 with pre-seeded synthetic data. Open each portal in separate tabs to test live interactions.</span>
+              <span><strong>Live Auth Active:</strong> Strict password-verified authentication via MongoDB. Select your role above, type your credentials, and access your dedicated portal.</span>
             </div>
           </div>
-          <div class="welcome__panel">
-            <h2>Launch a Dedicated Portal</h2>
-            <p>Each portal has its own distinct UI, dedicated authentication, and live database connection.</p>
-            <div class="role-cards">
-              <a class="role-card" href="patient.html" style="text-decoration:none; color:inherit;">
-                <span class="role-card__icon" style="background: #E6F4F1; color: #0F766E;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.2 8-6.2s8 2.2 8 6.2"/></svg>
-                </span>
-                <span class="role-card__body">
-                  <span class="role-card__title">Patient Portal (Ananya Sharma)</span>
-                  <span class="role-card__desc">Health records, grant revocation &amp; dynamic QR pass</span>
-                </span>
-                <span class="role-card__chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-              </a>
-              <a class="role-card" href="clinician.html" style="text-decoration:none; color:inherit;">
-                <span class="role-card__icon" style="background: #EAF1FE; color: #2563EB;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 0 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/><path d="M3 12h18"/></svg>
-                </span>
-                <span class="role-card__body">
-                  <span class="role-card__title">Clinician Portal (Dr. Rohit Verma)</span>
-                  <span class="role-card__desc">QR scan resolver, scoped chart &amp; break-glass override</span>
-                </span>
-                <span class="role-card__chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-              </a>
-              <a class="role-card" href="admin.html" style="text-decoration:none; color:inherit;">
-                <span class="role-card__icon" style="background: #FEF3C7; color: #D97706;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-                </span>
-                <span class="role-card__body">
-                  <span class="role-card__title">Administrator Console (admin.rao)</span>
-                  <span class="role-card__desc">Epidemic surveillance, k-suppression &amp; audit ledger</span>
-                </span>
-                <span class="role-card__chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
-              </a>
+          <div class="welcome__panel" style="padding: 24px; background: rgba(255,255,255,0.06); border-radius: 18px; border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 12px 32px rgba(0,0,0,0.25);">
+            <!-- Mode Switcher: Sign In vs Register -->
+            <div style="display: flex; background: rgba(0,0,0,0.35); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1);">
+              <button type="button" id="auth-mode-login-btn" style="flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; background: #0F766E; color: #fff; transition: all 0.2s;">
+                Sign In
+              </button>
+              <button type="button" id="auth-mode-register-btn" style="flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: transparent; color: rgba(255,255,255,0.7); transition: all 0.2s;">
+                Register New User
+              </button>
             </div>
-            <div class="demo-callout" style="margin-top:18px">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
-              <span>Each portal includes 1-click quick-sign-in buttons pre-configured for its persona.</span>
+
+            <!-- Error Banner -->
+            <div id="gateway-auth-error" style="display:none; padding:10px 14px; background:rgba(239, 68, 68, 0.2); border:1px solid rgba(239, 68, 68, 0.4); color:#FCA5A5; border-radius:10px; font-size:13px; margin-bottom:16px;"></div>
+
+            <!-- 1. LOGIN PANE -->
+            <div id="pane-login-section">
+              <div style="margin-bottom: 16px;">
+                <h2 style="font-size: 18px; font-weight: 700; color: #fff; margin: 0 0 4px;">Sign In to Gateway HUB</h2>
+                <p style="font-size: 12.5px; color: rgba(255,255,255,0.7); margin: 0;">Select account type and enter your verified credentials</p>
+              </div>
+
+              <!-- Role Selector (Patient / Clinician / Admin) -->
+              <div style="margin-bottom: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; background: rgba(0,0,0,0.25); padding: 5px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                  <button type="button" id="gateway-role-patient" class="gateway-role-btn active" data-role="PATIENT" style="padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; background: #0F766E; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.2 8-6.2s8 2.2 8 6.2"/></svg>
+                    Patient
+                  </button>
+                  <button type="button" id="gateway-role-clinician" class="gateway-role-btn" data-role="CLINICIAN" style="padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 1 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/></svg>
+                    Clinician
+                  </button>
+                  <button type="button" id="gateway-role-admin" class="gateway-role-btn" data-role="ADMIN" style="padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg>
+                    Admin
+                  </button>
+                </div>
+              </div>
+
+              <!-- Login Form -->
+              <form id="gateway-login-form">
+                <div style="margin-bottom: 14px;">
+                  <label id="gateway-label-email" for="gateway-email" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 6px;">Email Address or Patient ID / ABHA</label>
+                  <input type="text" id="gateway-email" placeholder="e.g. user@hackmatrix.demo or HMX-P-20481" autocomplete="username" required style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; outline: none; box-sizing: border-box;" />
+                </div>
+                <div style="margin-bottom: 18px;">
+                  <label for="gateway-password" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 6px;">Password</label>
+                  <div style="position: relative;">
+                    <input type="password" id="gateway-password" placeholder="••••••••" autocomplete="current-password" required style="width: 100%; padding: 11px 44px 11px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; outline: none; box-sizing: border-box;" />
+                    <button type="button" id="btn-toggle-login-pass" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.6); padding: 4px; display: flex; align-items: center;" title="Show or hide password">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                    </button>
+                  </div>
+                </div>
+                <button type="submit" id="gateway-submit-btn" class="hm-btn hm-btn--primary" style="width: 100%; padding: 13px; font-size: 14px; font-weight: 700; background: #0F766E; border: none; border-radius: 10px; color: #fff; cursor: pointer; transition: all 0.2s;">
+                  Sign In as Patient / User
+                </button>
+              </form>
+
+              <div style="margin-top: 14px; text-align: center;">
+                <button type="button" id="btn-goto-register" style="background: none; border: none; color: #2DD4BF; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline;">
+                  Don't have an account? Register as New User
+                </button>
+              </div>
+
+              <!-- Test Credentials Helper Accordion -->
+              <details style="margin-top: 18px; font-size: 12px; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px;">
+                <summary style="cursor: pointer; font-weight: 600; color: #fff;">🔑 Pre-Seeded MongoDB Accounts Guide</summary>
+                <div style="margin-top: 10px; line-height: 1.7; font-size: 11.5px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+                  <div><strong style="color:#2DD4BF;">Patients:</strong>
+                    <br/>• <code>ananya.sharma@hackmatrix.demo</code> (ID: <code>HMX-P-20481</code>) — Kothrud
+                    <br/>• <code>meera.nair@hackmatrix.demo</code> (ID: <code>HMX-P-31877</code>) — Baner
+                    <br/>• <code>rohan.deshmukh@hackmatrix.demo</code> (ID: <code>HMX-P-28110</code>) — Shivajinagar
+                    <br/>• <code>priya.sen@hackmatrix.demo</code> (ID: <code>HMX-P-45520</code>) — Aundh
+                  </div>
+                  <div style="margin-top:6px;"><strong style="color:#60A5FA;">Clinicians:</strong>
+                    <br/>• <code>rohit.verma@hackmatrix.demo</code> — Emergency Medicine, Sunrise Hospital
+                    <br/>• <code>neha.kapoor@hackmatrix.demo</code> — Internal Medicine
+                  </div>
+                  <div style="margin-top:6px;"><strong style="color:#FBBF24;">Administrators:</strong>
+                    <br/>• <code>admin.rao@hackmatrix.demo</code> (or <code>admin</code>)
+                  </div>
+                  <div style="margin-top:8px; color:#A7F3D0; font-weight:600; background:rgba(15,118,110,0.25); padding:6px 10px; border-radius:6px;">
+                    Password for all seeded accounts: <code>Password@123</code>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <!-- 2. REGISTRATION PANE -->
+            <div id="pane-register-section" style="display: none;">
+              <div style="margin-bottom: 16px;">
+                <h2 style="font-size: 18px; font-weight: 700; color: #fff; margin: 0 0 4px;">Register New User</h2>
+                <p style="font-size: 12.5px; color: rgba(255,255,255,0.7); margin: 0;">Create an account with persistent MongoDB storage</p>
+              </div>
+
+              <!-- Registration Role Selector (Patient vs Clinician only) -->
+              <div style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.75); text-transform: uppercase; margin-bottom: 6px;">Register As</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: rgba(0,0,0,0.25); padding: 5px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                  <button type="button" id="reg-role-patient" class="active" data-role="PATIENT" style="padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; background: #0F766E; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.2 8-6.2s8 2.2 8 6.2"/></svg>
+                    Patient / User
+                  </button>
+                  <button type="button" id="reg-role-clinician" data-role="CLINICIAN" style="padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V5a1 1 0 0 1 1-1h3M20 8V5a1 1 0 0 0-1-1h-3M4 16v3a1 1 0 0 1 1 1h3M20 16v3a1 1 0 0 1-1 1h-3"/></svg>
+                    Clinician / Doctor
+                  </button>
+                </div>
+                <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 4px;">
+                  🛡️ Administrator accounts are strictly provisioned by health authority governance.
+                </div>
+              </div>
+
+              <!-- Registration Form -->
+              <form id="gateway-register-form">
+                <div style="margin-bottom: 12px;">
+                  <label for="reg-name" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Full Name *</label>
+                  <input type="text" id="reg-name" placeholder="e.g. Rahul Sharma" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                  <label for="reg-email" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Email Address *</label>
+                  <input type="email" id="reg-email" placeholder="rahul.sharma@example.com" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                  <div>
+                    <label for="reg-password" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Password (min 6) *</label>
+                    <div style="position: relative;">
+                      <input type="password" id="reg-password" placeholder="••••••••" minlength="6" required style="width: 100%; padding: 10px 36px 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                      <button type="button" id="btn-toggle-reg-pass" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.6); padding: 2px;" title="Show or hide password">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="reg-password-confirm" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Confirm Password *</label>
+                    <input type="password" id="reg-password-confirm" placeholder="••••••••" minlength="6" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                  </div>
+                </div>
+
+                <!-- Patient Specific Fields -->
+                <div id="reg-patient-specific">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <div>
+                      <label for="reg-age" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Age</label>
+                      <input type="number" id="reg-age" value="30" min="1" max="120" style="width: 100%; padding: 10px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                    </div>
+                    <div>
+                      <label for="reg-sex" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Sex</label>
+                      <select id="reg-sex" style="width: 100%; padding: 10px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="reg-blood" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Blood</label>
+                      <select id="reg-blood" style="width: 100%; padding: 10px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <label for="reg-locality" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Pune Locality (Primary Region) *</label>
+                    <select id="reg-locality" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                      <option value="Kothrud">Kothrud</option>
+                      <option value="Baner">Baner</option>
+                      <option value="Aundh">Aundh</option>
+                      <option value="Hinjawadi">Hinjawadi</option>
+                      <option value="Wakad">Wakad</option>
+                      <option value="Hadapsar">Hadapsar</option>
+                      <option value="Kharadi">Kharadi</option>
+                      <option value="Bibwewadi">Bibwewadi</option>
+                      <option value="Kondhwa">Kondhwa</option>
+                      <option value="Viman Nagar">Viman Nagar</option>
+                      <option value="Shivajinagar">Shivajinagar</option>
+                      <option value="Yerawada">Yerawada</option>
+                      <option value="Pimpri">Pimpri</option>
+                      <option value="Chinchwad">Chinchwad</option>
+                    </select>
+                  </div>
+
+                  <div style="margin-bottom: 14px;">
+                    <label for="reg-phone" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Contact Phone</label>
+                    <input type="text" id="reg-phone" placeholder="+91 98765 43210" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                  </div>
+                </div>
+
+                <!-- Clinician Specific Fields -->
+                <div id="reg-clinician-specific" style="display: none;">
+                  <div style="margin-bottom: 12px;">
+                    <label for="reg-doc-specialty" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Department / Medical Specialty *</label>
+                    <select id="reg-doc-specialty" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                      <option value="Emergency Medicine">Emergency Medicine</option>
+                      <option value="Internal Medicine">Internal Medicine</option>
+                      <option value="Pulmonology">Pulmonology (Respiratory)</option>
+                      <option value="Cardiology">Cardiology</option>
+                      <option value="Dermatology">Dermatology</option>
+                      <option value="Pediatrics">Pediatrics</option>
+                    </select>
+                  </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <label for="reg-doc-facility" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Hospital / Clinic Facility *</label>
+                    <input type="text" id="reg-doc-facility" value="Sunrise Multispecialty Hospital" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                  </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <label for="reg-doc-locality" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Pune Practice Locality *</label>
+                    <select id="reg-doc-locality" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: #1E293B; color: #fff; font-size: 13px;">
+                      <option value="Shivajinagar">Shivajinagar</option>
+                      <option value="Kothrud">Kothrud</option>
+                      <option value="Baner">Baner</option>
+                      <option value="Aundh">Aundh</option>
+                      <option value="Hinjawadi">Hinjawadi</option>
+                      <option value="Wakad">Wakad</option>
+                      <option value="Hadapsar">Hadapsar</option>
+                      <option value="Kharadi">Kharadi</option>
+                      <option value="Bibwewadi">Bibwewadi</option>
+                      <option value="Kondhwa">Kondhwa</option>
+                      <option value="Viman Nagar">Viman Nagar</option>
+                      <option value="Yerawada">Yerawada</option>
+                      <option value="Pimpri">Pimpri</option>
+                      <option value="Chinchwad">Chinchwad</option>
+                    </select>
+                  </div>
+
+                  <div style="margin-bottom: 14px;">
+                    <label for="reg-doc-license" style="display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 4px;">Medical License / Reg No.</label>
+                    <input type="text" id="reg-doc-license" placeholder="MMC-2024-XXXX" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18); background: rgba(0,0,0,0.3); color: #fff; font-size: 13px;" />
+                  </div>
+                </div>
+
+                <button type="submit" id="gateway-reg-submit-btn" class="hm-btn hm-btn--primary" style="width: 100%; padding: 13px; font-size: 14px; font-weight: 700; background: #0F766E; border: none; border-radius: 10px; color: #fff; cursor: pointer; transition: all 0.2s;">
+                  Register &amp; Access Patient Portal
+                </button>
+              </form>
+
+              <div style="margin-top: 14px; text-align: center;">
+                <button type="button" id="btn-goto-login" style="background: none; border: none; color: #2DD4BF; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline;">
+                  Already have an account? Sign In here
+                </button>
+              </div>
             </div>
           </div>
+
         </div>
       </div>
     </section>
@@ -322,6 +538,7 @@
   <div class="hm-toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
   <div id="overlay"></div>
 
+  <script src="api.js"></script>
   <script src="app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
